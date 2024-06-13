@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{ConfigMap, Pod};
 use k8s_openapi::{Metadata, NamespaceResourceScope, Resource};
 use kube::api::ObjectMeta;
 use kube::{
@@ -18,6 +18,9 @@ pub async fn kubeclean(
     resource: Resources,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if namespace.is_none() {
+        debug!("No namespace specified, will use what's in the current context.");
+    }
     let client = Client::try_default().await?;
     match resource {
         Resources::ConfigMap => clean_config_maps(client, namespace.as_ref()).await,
@@ -28,11 +31,23 @@ async fn clean_config_maps(
     client: Client,
     namespace: Option<&String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    free_pods(client, namespace)
+    let config_maps: Vec<String> = get_api::<ConfigMap>(client.clone(), namespace)
+        .list(&ListParams::default())
+        .await?
+        .into_iter()
+        .map(|cm| cm.name_any())
+        .collect();
+
+    let used_config_maps: Vec<String> = free_pods(client, namespace)
         .await?
         .into_iter()
         .flat_map(|pod| extract_config_maps_from_pod_volumes(&pod))
-        .for_each(|s| println!("{s}"));
+        .collect();
+
+    let _ = config_maps
+        .iter()
+        .filter(|cm_name| !used_config_maps.contains(&cm_name))
+        .for_each(|cm_name| println!("Found unused configmap: {}.", cm_name));
     Ok(())
 }
 
