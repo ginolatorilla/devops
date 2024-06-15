@@ -13,9 +13,13 @@ struct Args {
     #[arg(value_enum)]
     resource: Resources,
 
-    /// Log level to show.
+    /// Show more detailed logs (repeat to show more)
     #[arg(short, action=ArgAction::Count)]
     verbose: u8,
+
+    /// Do not perform any actions against the cluster.
+    #[arg(long)]
+    dry_run: bool,
 }
 
 #[derive(ValueEnum, Debug, Clone)]
@@ -40,5 +44,5 @@ fn main() {
     let resource_kind = match args.resource {
         Resources::ConfigMap => ConfigMap::KIND,
     };
-    let _ = kubeclean(resource_kind, args.namespace);
+    let _ = kubeclean(resource_kind, args.namespace, args.dry_run);
 }
