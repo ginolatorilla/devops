@@ -40,7 +40,16 @@ async fn clean_config_maps(
     client: Client,
     namespace: Option<&String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let resources = join!(
+    let (
+        config_maps,
+        free_pods,
+        deployments,
+        replicasets,
+        statefulsets,
+        daemonsets,
+        cronjobs,
+        free_jobs,
+    ) = join!(
         get_resources::<ConfigMap>(&client, namespace),
         get_ownerless_resources::<Pod>(&client, namespace),
         get_resources::<Deployment>(&client, namespace),
@@ -50,28 +59,23 @@ async fn clean_config_maps(
         get_resources::<CronJob>(&client, namespace),
         get_ownerless_resources::<Job>(&client, namespace),
     );
-    println!("Done");
+    debug!("Done fetching resources from the Kubernetes API server.");
 
-    let used_config_maps = get_config_map_references(resources.1);
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.1));
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.2));
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.3));
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.4));
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.5));
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.6));
-    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.7));
+    let mut used_config_maps = get_config_map_references(free_pods);
+    used_config_maps.extend(get_config_map_references(deployments).into_iter());
+    used_config_maps.extend(get_config_map_references(replicasets).into_iter());
+    used_config_maps.extend(get_config_map_references(statefulsets).into_iter());
+    used_config_maps.extend(get_config_map_references(daemonsets).into_iter());
+    used_config_maps.extend(get_config_map_references(cronjobs).into_iter());
+    used_config_maps.extend(get_config_map_references(free_jobs).into_iter());
 
-    let config_maps: HashSet<String> = resources
-        .0
+    let config_maps: HashSet<String> = config_maps
         .into_iter()
         .map(|config_map| config_map.name_any())
         .collect();
 
-    let unused_config_maps: HashSet<String> = config_maps
-        .difference(&used_config_maps)
-        .cloned()
-        .inspect(|config_map| debug!("Config map {config_map} is unused."))
-        .collect();
+    let unused_config_maps: HashSet<String> =
+        config_maps.difference(&used_config_maps).cloned().collect();
 
     info!(
         "There are {} config maps, {} are used, {} will be removed.",
@@ -79,6 +83,10 @@ async fn clean_config_maps(
         used_config_maps.len(),
         unused_config_maps.len()
     );
+
+    unused_config_maps
+        .iter()
+        .for_each(|config_map| println!("{config_map}"));
     Ok(())
 }
 
