@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
 
-use clap::ValueEnum;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
 use k8s_openapi::api::batch::v1::{CronJob, Job};
 use k8s_openapi::api::core::v1::{ConfigMap, Pod, PodSpec};
@@ -17,22 +16,18 @@ use kube::{
 use log::{debug, info};
 use tokio::join;
 
-#[derive(ValueEnum, Debug, Clone)]
-pub enum Resources {
-    ConfigMap,
-}
-
 #[tokio::main()]
 pub async fn kubeclean(
-    resource: Resources,
+    resource_kind: &'static str,
     namespace: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if namespace.is_none() {
         debug!("No namespace specified, will use what's in the current context.");
     }
     let client = Client::try_default().await?;
-    match resource {
-        Resources::ConfigMap => clean_config_maps(client, namespace.as_ref()).await,
+    match resource_kind {
+        "ConfigMap" => clean_config_maps(client, namespace.as_ref()).await,
+        _ => todo!("Resource not supported"),
     }
 }
 

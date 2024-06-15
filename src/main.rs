@@ -1,7 +1,7 @@
-use clap::{ArgAction, Parser};
+use clap::{ArgAction, Parser, ValueEnum};
 mod k8s;
-use k8s::{kubeclean, Resources};
-
+use k8s::kubeclean;
+use k8s_openapi::{api::core::v1::ConfigMap, Resource};
 /// Cleans up unused Kubernetes resources.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -18,6 +18,11 @@ struct Args {
     verbose: u8,
 }
 
+#[derive(ValueEnum, Debug, Clone)]
+pub enum Resources {
+    ConfigMap,
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -32,8 +37,8 @@ fn main() {
     clog.filter(None, log_level);
     clog.init();
 
-    match args.resource {
-        Resources::ConfigMap => println!("I will clean all configmaps in {:?}.", args.namespace),
-    }
-    let _ = kubeclean(args.resource, args.namespace);
+    let resource_kind = match args.resource {
+        Resources::ConfigMap => ConfigMap::KIND,
+    };
+    let _ = kubeclean(resource_kind, args.namespace);
 }
