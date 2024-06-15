@@ -14,6 +14,7 @@ use kube::{
     Client,
 };
 use log::{debug, info};
+use regex::Regex;
 use tokio::join;
 
 const EXEMPTIONS: [&str; 1] = ["kube-root-ca.crt"];
@@ -23,13 +24,17 @@ pub async fn kubeclean(
     resource_kind: &'static str,
     namespace: Option<String>,
     dry_run: bool,
+    filter: Option<String>,
+    inverse_filter: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if namespace.is_none() {
         debug!("No namespace specified, will use what's in the current context.");
     }
     let client = Client::try_default().await?;
     match resource_kind {
-        "ConfigMap" => clean_config_maps(client, namespace.as_ref(), dry_run).await,
+        "ConfigMap" => {
+            clean_config_maps(client, namespace.as_ref(), dry_run, filter, inverse_filter).await
+        }
         _ => todo!("Resource not supported"),
     }
 }
@@ -38,6 +43,8 @@ async fn clean_config_maps(
     client: Client,
     namespace: Option<&String>,
     dry_run: bool,
+    filter: Option<String>,
+    inverse_filter: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (
         config_maps,
@@ -81,6 +88,30 @@ async fn clean_config_maps(
                 debug!("Will not deleted {config_map} because it's exempted.")
             }
             !is_exempted
+        })
+        .filter(|config_map| {
+            filter.as_ref().map_or(true, |regexp| {
+                let is_matching = Regex::new(&regexp.as_str())
+                    .unwrap()
+                    .find(config_map.as_str())
+                    .is_some();
+
+                if inverse_filter {
+                    if is_matching {
+                        info!("Will not delete config map {config_map} because it's filtered-out.");
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    if is_matching {
+                        true
+                    } else {
+                        info!("Will not delete config map {config_map} because it's filtered-out.");
+                        false
+                    }
+                }
+            })
         })
         .cloned()
         .collect();

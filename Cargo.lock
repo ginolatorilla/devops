@@ -909,6 +909,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "log",
+ "regex",
  "tokio",
 ]
 

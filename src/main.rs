@@ -20,6 +20,14 @@ struct Args {
     /// Do not perform any actions against the cluster.
     #[arg(long)]
     dry_run: bool,
+
+    /// Delete resources that matches a regex.
+    #[arg(short, long)]
+    filter: Option<String>,
+
+    /// Transforms the filter to a blacklist.
+    #[arg(long)]
+    inverse_filter: bool,
 }
 
 #[derive(ValueEnum, Debug, Clone)]
@@ -44,5 +52,11 @@ fn main() {
     let resource_kind = match args.resource {
         Resources::ConfigMap => ConfigMap::KIND,
     };
-    let _ = kubeclean(resource_kind, args.namespace, args.dry_run);
+    let _ = kubeclean(
+        resource_kind,
+        args.namespace,
+        args.dry_run,
+        args.filter,
+        args.inverse_filter,
+    );
 }
