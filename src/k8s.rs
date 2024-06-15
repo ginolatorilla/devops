@@ -16,6 +16,8 @@ use kube::{
 use log::{debug, info};
 use tokio::join;
 
+const EXEMPTIONS: [&str; 1] = ["kube-root-ca.crt"];
+
 #[tokio::main()]
 pub async fn kubeclean(
     resource_kind: &'static str,
@@ -69,8 +71,17 @@ async fn clean_config_maps(
         .map(|config_map| config_map.name_any())
         .collect();
 
-    let unused_config_maps: HashSet<String> =
-        config_maps.difference(&used_config_maps).cloned().collect();
+    let unused_config_maps: HashSet<String> = config_maps
+        .difference(&used_config_maps)
+        .filter(|config_map| {
+            let is_exempted = EXEMPTIONS.contains(&config_map.as_str());
+            if is_exempted {
+                debug!("Will not deleted {config_map} because it's exempted.")
+            }
+            !is_exempted
+        })
+        .cloned()
+        .collect();
 
     info!(
         "There are {} config maps, {} are used, {} will be removed.",
