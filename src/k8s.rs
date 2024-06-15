@@ -52,14 +52,14 @@ async fn clean_config_maps(
     );
     println!("Done");
 
-    let used_config_maps: HashSet<String> = HashSet::new();
-    used_config_maps.union(&get_config_map_references(resources.1));
-    used_config_maps.union(&get_config_map_references(resources.2));
-    used_config_maps.union(&get_config_map_references(resources.3));
-    used_config_maps.union(&get_config_map_references(resources.4));
-    used_config_maps.union(&get_config_map_references(resources.5));
-    used_config_maps.union(&get_config_map_references(resources.6));
-    used_config_maps.union(&get_config_map_references(resources.7));
+    let used_config_maps = get_config_map_references(resources.1);
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.1));
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.2));
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.3));
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.4));
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.5));
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.6));
+    // let used_config_maps = used_config_maps.union(&get_config_map_references(resources.7));
 
     let config_maps: HashSet<String> = resources
         .0
@@ -73,7 +73,12 @@ async fn clean_config_maps(
         .inspect(|config_map| debug!("Config map {config_map} is unused."))
         .collect();
 
-    info!("Will delete {} config maps out of the {}.", unused_config_maps.len(), resources.0.len())
+    info!(
+        "There are {} config maps, {} are used, {} will be removed.",
+        config_maps.len(),
+        used_config_maps.len(),
+        unused_config_maps.len()
+    );
     Ok(())
 }
 
@@ -95,7 +100,7 @@ async fn get_resources<
 
     match resources.list(&ListParams::default()).await {
         Ok(list) => {
-            if list.items.len() != 0 {
+            if !list.items.is_empty() {
                 debug!(
                     "Got {} {}{} from the namespace {}",
                     list.items.len(),
@@ -120,7 +125,7 @@ async fn get_ownerless_resources<
     client: &Client,
     namespace: Option<&String>,
 ) -> Vec<K> {
-    get_resources::<K>(&client, namespace)
+    get_resources::<K>(client, namespace)
         .await
         .into_iter()
         .filter(|resource| resource.metadata().owner_references.is_none())
