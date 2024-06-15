@@ -221,12 +221,8 @@ async fn delete_resources<
             .delete(target.as_str(), &DeleteParams::default())
             .await;
     }
-    // targets.into_iter().for_each(async |target| {
-    //     resources
-    //         .delete(target.as_str(), &DeleteParams::default())
-    //         .await
-    // })
 }
+
 trait HasPodSpec {
     fn pod_spec(&self) -> &PodSpec;
 }
