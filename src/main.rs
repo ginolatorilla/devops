@@ -1,7 +1,6 @@
-use clap::{ArgAction, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand};
 mod k8s;
 use k8s::kubeclean;
-use k8s_openapi::{api::core::v1::ConfigMap, Resource};
 
 fn main() {
     let args = Args::parse();
@@ -16,10 +15,7 @@ fn main() {
             inverse_filter,
         } => {
             configure_logger(verbose);
-            let resource_kind = match resource {
-                Resources::ConfigMap => ConfigMap::KIND,
-            };
-            let _ = kubeclean(resource_kind, namespace, dry_run, filter, inverse_filter);
+            let _ = kubeclean(resource, namespace, dry_run, filter, inverse_filter);
         }
     }
 }
@@ -54,7 +50,7 @@ enum Commands {
 
         /// The kind of resource to clean up.
         #[arg(value_enum)]
-        resource: Resources,
+        resource: k8s::Resources,
 
         /// Show more detailed logs (repeat to show more)
         #[arg(short, action=ArgAction::Count)]
@@ -72,9 +68,4 @@ enum Commands {
         #[arg(long)]
         inverse_filter: bool,
     },
-}
-
-#[derive(ValueEnum, Debug, Clone)]
-pub enum Resources {
-    ConfigMap,
 }

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
 
+use clap::ValueEnum;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
 use k8s_openapi::api::batch::v1::{CronJob, Job};
 use k8s_openapi::api::core::v1::{ConfigMap, Pod, PodSpec};
@@ -19,9 +20,14 @@ use tokio::join;
 
 const EXEMPTIONS: [&str; 1] = ["kube-root-ca.crt"];
 
+#[derive(ValueEnum, Debug, Clone)]
+pub enum Resources {
+    ConfigMap,
+}
+
 #[tokio::main()]
 pub async fn kubeclean(
-    resource_kind: &'static str,
+    resource_kind: Resources,
     namespace: Option<String>,
     dry_run: bool,
     filter: Option<String>,
@@ -32,10 +38,9 @@ pub async fn kubeclean(
     }
     let client = Client::try_default().await?;
     match resource_kind {
-        "ConfigMap" => {
+        Resources::ConfigMap => {
             clean_config_maps(client, namespace.as_ref(), dry_run, filter, inverse_filter).await
         }
-        _ => todo!("Resource not supported"),
     }
 }
 
