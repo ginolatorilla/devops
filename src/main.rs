@@ -1,4 +1,4 @@
-use clap::{ArgAction, Parser, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 mod k8s;
 use k8s::kubeclean;
 use k8s_openapi::{api::core::v1::ConfigMap, Resource};
@@ -6,55 +6,69 @@ use k8s_openapi::{api::core::v1::ConfigMap, Resource};
 fn main() {
     let args = Args::parse();
 
-    let mut clog = colog::default_builder();
-    let log_level = match args.verbose {
-        0 => log::LevelFilter::Warn,
-        1 => log::LevelFilter::Info,
-        2 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
-    };
+    match args.command {
+        Commands::Kubeclean {
+            namespace,
+            resource,
+            verbose,
+            dry_run,
+            filter,
+            inverse_filter,
+        } => {
+            let mut clog = colog::default_builder();
+            let log_level = match verbose {
+                0 => log::LevelFilter::Warn,
+                1 => log::LevelFilter::Info,
+                2 => log::LevelFilter::Debug,
+                _ => log::LevelFilter::Trace,
+            };
 
-    clog.filter(None, log_level);
-    clog.init();
+            clog.filter(None, log_level);
+            clog.init();
 
-    let resource_kind = match args.resource {
-        Resources::ConfigMap => ConfigMap::KIND,
-    };
-    let _ = kubeclean(
-        resource_kind,
-        args.namespace,
-        args.dry_run,
-        args.filter,
-        args.inverse_filter,
-    );
+            let resource_kind = match resource {
+                Resources::ConfigMap => ConfigMap::KIND,
+            };
+            let _ = kubeclean(resource_kind, namespace, dry_run, filter, inverse_filter);
+        }
+    }
 }
 
-/// Cleans up unused Kubernetes resources.
+/// Gino's DevOps tools
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    namespace: Option<String>,
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    /// The kind of resource to clean up.
-    #[arg(value_enum)]
-    resource: Resources,
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Cleans up unused Kubernetes resources.
+    Kubeclean {
+        #[arg(short, long)]
+        namespace: Option<String>,
 
-    /// Show more detailed logs (repeat to show more)
-    #[arg(short, action=ArgAction::Count)]
-    verbose: u8,
+        /// The kind of resource to clean up.
+        #[arg(value_enum)]
+        resource: Resources,
 
-    /// Do not perform any actions against the cluster.
-    #[arg(long)]
-    dry_run: bool,
+        /// Show more detailed logs (repeat to show more)
+        #[arg(short, action=ArgAction::Count)]
+        verbose: u8,
 
-    /// Delete resources that matches a regex.
-    #[arg(short, long)]
-    filter: Option<String>,
+        /// Do not perform any actions against the cluster.
+        #[arg(long)]
+        dry_run: bool,
 
-    /// Transforms the filter to a blacklist.
-    #[arg(long)]
-    inverse_filter: bool,
+        /// Delete resources that matches a regex.
+        #[arg(short, long)]
+        filter: Option<String>,
+
+        /// Transforms the filter to a blacklist.
+        #[arg(long)]
+        inverse_filter: bool,
+    },
 }
 
 #[derive(ValueEnum, Debug, Clone)]
