@@ -1,6 +1,6 @@
 use clap::{ArgAction, Parser, Subcommand};
-mod k8s;
-use k8s::kubeclean;
+mod kubeclean;
+use kubeclean::kubeclean;
 
 fn main() {
     let args = Args::parse();
@@ -50,7 +50,7 @@ enum Commands {
 
         /// The kind of resource to clean up.
         #[arg(value_enum)]
-        resource: k8s::Resources,
+        resource: kubeclean::Resources,
 
         /// Show more detailed logs (repeat to show more)
         #[arg(short, action=ArgAction::Count)]
