@@ -15,23 +15,26 @@ fn main() {
             filter,
             inverse_filter,
         } => {
-            let mut clog = colog::default_builder();
-            let log_level = match verbose {
-                0 => log::LevelFilter::Warn,
-                1 => log::LevelFilter::Info,
-                2 => log::LevelFilter::Debug,
-                _ => log::LevelFilter::Trace,
-            };
-
-            clog.filter(None, log_level);
-            clog.init();
-
+            configure_logger(verbose);
             let resource_kind = match resource {
                 Resources::ConfigMap => ConfigMap::KIND,
             };
             let _ = kubeclean(resource_kind, namespace, dry_run, filter, inverse_filter);
         }
     }
+}
+
+fn configure_logger(verbosity: u8) {
+    let mut clog = colog::default_builder();
+    let log_level = match verbosity {
+        0 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        2 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
+    };
+
+    clog.filter(None, log_level);
+    clog.init();
 }
 
 /// Gino's DevOps tools
