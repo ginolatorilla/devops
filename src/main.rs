@@ -1,21 +1,28 @@
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 mod kubeclean;
-use kubeclean::kubeclean;
+
+/// Gino's DevOps tools
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Cleans up unused Kubernetes resources.
+    #[command(name = "kube-clean")]
+    Kubeclean(kubeclean::CommandArgs),
+}
 
 fn main() {
     let args = Args::parse();
 
     match args.command {
-        Commands::Kubeclean {
-            namespace,
-            resource,
-            verbose,
-            dry_run,
-            filter,
-            inverse_filter,
-        } => {
-            configure_logger(verbose);
-            let _ = kubeclean(resource, namespace, dry_run, filter, inverse_filter);
+        Commands::Kubeclean(args) => {
+            configure_logger(args.verbosity);
+            let _ = kubeclean::handle(args);
         }
     }
 }
@@ -31,41 +38,4 @@ fn configure_logger(verbosity: u8) {
 
     clog.filter(None, log_level);
     clog.init();
-}
-
-/// Gino's DevOps tools
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Cleans up unused Kubernetes resources.
-    Kubeclean {
-        #[arg(short, long)]
-        namespace: Option<String>,
-
-        /// The kind of resource to clean up.
-        #[arg(value_enum)]
-        resource: kubeclean::Resources,
-
-        /// Show more detailed logs (repeat to show more)
-        #[arg(short, action=ArgAction::Count)]
-        verbose: u8,
-
-        /// Do not perform any actions against the cluster.
-        #[arg(long)]
-        dry_run: bool,
-
-        /// Delete resources that matches a regex.
-        #[arg(short, long)]
-        filter: Option<String>,
-
-        /// Transforms the filter to a blacklist.
-        #[arg(long)]
-        inverse_filter: bool,
-    },
 }
