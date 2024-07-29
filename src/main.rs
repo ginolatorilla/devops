@@ -6,24 +6,34 @@ mod kube_clean;
 #[command(version, about, long_about = None)]
 struct Args {
     #[command(subcommand)]
-    command: Commands,
+    group: Groups,
 }
 
 #[derive(Subcommand, Debug)]
-enum Commands {
+enum Groups {
+    Kubernetes {
+        #[command(subcommand)]
+        command: KubernetesCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum KubernetesCommands {
     /// Cleans up unused Kubernetes resources.
-    #[command(name = "kube-clean")]
-    Kubeclean(kube_clean::CommandArgs),
+    #[command()]
+    Clean(kube_clean::CommandArgs),
 }
 
 fn main() {
     let args = Args::parse();
 
-    match args.command {
-        Commands::Kubeclean(args) => {
-            configure_logger(args.verbosity);
-            let _ = kube_clean::handle(args);
-        }
+    match args.group {
+        Groups::Kubernetes { command } => match command {
+            KubernetesCommands::Clean(args) => {
+                configure_logger(args.verbosity);
+                let _ = kube_clean::handle(args);
+            }
+        },
     }
 }
 
