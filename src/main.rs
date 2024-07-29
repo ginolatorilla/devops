@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-mod kube_clean;
+mod kubernetes;
 
 /// Gino's DevOps tools
 #[derive(Parser, Debug)]
@@ -13,15 +13,8 @@ struct Args {
 enum Groups {
     Kubernetes {
         #[command(subcommand)]
-        command: KubernetesCommands,
+        command: kubernetes::Commands,
     },
-}
-
-#[derive(Subcommand, Debug)]
-enum KubernetesCommands {
-    /// Cleans up unused Kubernetes resources.
-    #[command()]
-    Clean(kube_clean::CommandArgs),
 }
 
 fn main() {
@@ -29,9 +22,9 @@ fn main() {
 
     match args.group {
         Groups::Kubernetes { command } => match command {
-            KubernetesCommands::Clean(args) => {
+            kubernetes::Commands::Clean(args) => {
                 configure_logger(args.verbosity);
-                let _ = kube_clean::handle(args);
+                let _ = kubernetes::clean::handle(args);
             }
         },
     }
