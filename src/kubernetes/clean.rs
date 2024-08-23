@@ -9,7 +9,7 @@ use k8s_openapi::api::core::v1::{ConfigMap, Pod, PodSpec};
 use k8s_openapi::serde::de::DeserializeOwned;
 use k8s_openapi::{Metadata, NamespaceResourceScope, Resource};
 use kube::api::{DeleteParams, ObjectMeta};
-use kube::ResourceExt;
+use kube::config::KubeConfigOptions;
 use kube::{
     api::{Api, ListParams},
     Client,
@@ -24,6 +24,9 @@ const EXEMPTIONS: [&str; 1] = ["kube-root-ca.crt"];
 pub struct CommandArgs {
     #[arg(short, long)]
     namespace: Option<String>,
+
+    #[arg(short, long)]
+    context: Option<String>,
 
     /// The kind of resource to clean up.
     #[arg(value_enum)]
@@ -56,7 +59,15 @@ pub async fn handle(args: CommandArgs) -> Result<(), Box<dyn std::error::Error>>
     if args.namespace.is_none() {
         debug!("No namespace specified, will use what's in the current context.");
     }
-    let client = Client::try_default().await?;
+
+    let config = Config::from_kubeconfig(&KubeConfigOptions {
+        context: args.context,
+        cluster: None,
+        user: None,
+    })
+    .await?;
+
+    let client = Client::try_from(config)?;
     match args.resource {
         Resources::ConfigMap => {
             clean_config_maps(
