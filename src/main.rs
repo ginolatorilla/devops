@@ -20,14 +20,14 @@ enum Groups {
 fn main() {
     let args = Args::parse();
 
-    match args.group {
+    let _ = match args.group {
         Groups::Kubernetes { command } => match command {
             kubernetes::Commands::Clean(args) => {
                 configure_logger(args.verbosity);
-                let _ = kubernetes::clean::handle(args);
+                kubernetes::clean::handle(args)
             }
         },
-    }
+    };
 }
 
 fn configure_logger(verbosity: u8) {

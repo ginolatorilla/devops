@@ -9,11 +9,12 @@ use k8s_openapi::api::core::v1::{ConfigMap, Pod, PodSpec};
 use k8s_openapi::serde::de::DeserializeOwned;
 use k8s_openapi::{Metadata, NamespaceResourceScope, Resource};
 use kube::api::{DeleteParams, ObjectMeta};
-use kube::ResourceExt;
+use kube::config::KubeConfigOptions;
 use kube::{
     api::{Api, ListParams},
     Client,
 };
+use kube::{Config, ResourceExt};
 use log::{debug, info};
 use regex::Regex;
 use tokio::join;
@@ -24,6 +25,9 @@ const EXEMPTIONS: [&str; 1] = ["kube-root-ca.crt"];
 pub struct CommandArgs {
     #[arg(short, long)]
     namespace: Option<String>,
+
+    #[arg(short, long)]
+    context: Option<String>,
 
     /// The kind of resource to clean up.
     #[arg(value_enum)]
@@ -56,7 +60,15 @@ pub async fn handle(args: CommandArgs) -> Result<(), Box<dyn std::error::Error>>
     if args.namespace.is_none() {
         debug!("No namespace specified, will use what's in the current context.");
     }
-    let client = Client::try_default().await?;
+
+    let config = Config::from_kubeconfig(&KubeConfigOptions {
+        context: args.context,
+        cluster: None,
+        user: None,
+    })
+    .await?;
+
+    let client = Client::try_from(config)?;
     match args.resource {
         Resources::ConfigMap => {
             clean_config_maps(
@@ -97,21 +109,20 @@ async fn clean_config_maps(
         get_resources::<CronJob>(&client, namespace),
         get_ownerless_resources::<Job>(&client, namespace),
     );
+
+    let mut used_config_maps = get_config_map_references(free_pods?);
+    used_config_maps.extend(get_config_map_references(deployments?).into_iter());
+    used_config_maps.extend(get_config_map_references(replicasets?).into_iter());
+    used_config_maps.extend(get_config_map_references(statefulsets?).into_iter());
+    used_config_maps.extend(get_config_map_references(daemonsets?).into_iter());
+    used_config_maps.extend(get_config_map_references(cronjobs?).into_iter());
+    used_config_maps.extend(get_config_map_references(free_jobs?).into_iter());
     debug!("Done fetching resources from the Kubernetes API server.");
 
-    let mut used_config_maps = get_config_map_references(free_pods);
-    used_config_maps.extend(get_config_map_references(deployments).into_iter());
-    used_config_maps.extend(get_config_map_references(replicasets).into_iter());
-    used_config_maps.extend(get_config_map_references(statefulsets).into_iter());
-    used_config_maps.extend(get_config_map_references(daemonsets).into_iter());
-    used_config_maps.extend(get_config_map_references(cronjobs).into_iter());
-    used_config_maps.extend(get_config_map_references(free_jobs).into_iter());
-
-    let config_maps: HashSet<String> = config_maps
+    let config_maps: HashSet<String> = config_maps?
         .into_iter()
         .map(|config_map| config_map.name_any())
         .collect();
-
     let unused_config_maps: HashSet<String> = config_maps
         .difference(&used_config_maps)
         .filter(|config_map| {
@@ -127,7 +138,6 @@ async fn clean_config_maps(
                     .unwrap()
                     .find(config_map.as_str())
                     .is_some();
-
                 if inverse_filter {
                     if is_matching {
                         info!("Will not delete config map {config_map} because it's filtered-out.");
@@ -147,18 +157,15 @@ async fn clean_config_maps(
         })
         .cloned()
         .collect();
-
     info!(
         "There are {} config maps, {} are used, {} will be removed.",
         config_maps.len(),
         used_config_maps.len(),
         unused_config_maps.len()
     );
-
     unused_config_maps
         .iter()
         .for_each(|config_map| println!("{config_map}"));
-
     if dry_run {
         info!("Not deleting anything")
     } else {
@@ -182,28 +189,23 @@ async fn get_resources<
 >(
     client: &Client,
     namespace: Option<&String>,
-) -> Vec<K> {
+) -> Result<Vec<K>, Box<dyn std::error::Error>> {
     let client = Cow::Borrowed(client);
     let resources: Api<K> = match namespace {
         Some(ns) => Api::namespaced(client.into_owned(), ns),
         None => Api::default_namespaced(client.into_owned()),
     };
-
-    match resources.list(&ListParams::default()).await {
-        Ok(list) => {
-            if !list.items.is_empty() {
-                debug!(
-                    "Got {} {}{} from the namespace {}",
-                    list.items.len(),
-                    K::KIND,
-                    if list.items.len() > 1 { "s" } else { "" },
-                    list.items[0].metadata().namespace.as_ref().unwrap()
-                );
-            }
-            list.items
-        }
-        Err(_) => Vec::new(),
+    let objects = resources.list(&ListParams::default()).await?;
+    if !objects.items.is_empty() {
+        debug!(
+            "Got {} {}{} from the namespace {}",
+            objects.items.len(),
+            K::KIND,
+            if objects.items.len() > 1 { "s" } else { "" },
+            objects.items[0].metadata().namespace.as_ref().unwrap()
+        );
     }
+    Ok(objects.items)
 }
 
 async fn get_ownerless_resources<
@@ -215,9 +217,9 @@ async fn get_ownerless_resources<
 >(
     client: &Client,
     namespace: Option<&String>,
-) -> Vec<K> {
-    get_resources::<K>(client, namespace)
-        .await
+) -> Result<Vec<K>, Box<dyn std::error::Error>> {
+    let result: Vec<K> = get_resources::<K>(client, namespace)
+        .await?
         .into_iter()
         .filter(|resource| resource.metadata().owner_references.is_none())
         .inspect(|resource| {
@@ -227,7 +229,8 @@ async fn get_ownerless_resources<
                 resource.metadata().name.as_ref().unwrap(),
             )
         })
-        .collect()
+        .collect();
+    Ok(result)
 }
 
 async fn delete_resources<
@@ -240,19 +243,18 @@ async fn delete_resources<
     client: &Client,
     namespace: Option<&String>,
     targets: Vec<String>,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     let client = Cow::Borrowed(client);
     let resources: Api<K> = match namespace {
         Some(ns) => Api::namespaced(client.into_owned(), ns),
         None => Api::default_namespaced(client.into_owned()),
     };
-
-    // 9.km
     for ref target in targets {
-        let _ = resources
+        resources
             .delete(target.as_str(), &DeleteParams::default())
-            .await;
+            .await?;
     }
+    Ok(())
 }
 
 trait HasPodSpec {
