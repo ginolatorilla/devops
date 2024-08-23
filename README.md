@@ -1,15 +1,11 @@
-# kubeclean
+# Gino's DevOps Tools
 
-A tool that cleans up unused resources in your Kubernetes cluster.
-
-This will delete config maps that are not used by any workload resource.
-
-More resources will be supported soon.
+A collection of different tools that I use for DevOps-related tasks.
 
 ## Installation
 
-```
-git clone <this-project>
-cd kubeclean
+```shell
+git clone https://github.com/ginolatorilla/devops.git
+cd devops
 cargo install
 ```

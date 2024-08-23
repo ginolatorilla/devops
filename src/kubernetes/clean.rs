@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
 
+use clap::{ArgAction, Args, ValueEnum};
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
 use k8s_openapi::api::batch::v1::{CronJob, Job};
 use k8s_openapi::api::core::v1::{ConfigMap, Pod, PodSpec};
@@ -19,23 +20,54 @@ use tokio::join;
 
 const EXEMPTIONS: [&str; 1] = ["kube-root-ca.crt"];
 
-#[tokio::main()]
-pub async fn kubeclean(
-    resource_kind: &'static str,
+#[derive(Debug, Args)]
+pub struct CommandArgs {
+    #[arg(short, long)]
     namespace: Option<String>,
+
+    /// The kind of resource to clean up.
+    #[arg(value_enum)]
+    resource: Resources,
+
+    /// Show more detailed logs (repeat to show more)
+    #[arg(short, action=ArgAction::Count)]
+    pub verbosity: u8,
+
+    /// Do not perform any actions against the cluster.
+    #[arg(long)]
     dry_run: bool,
+
+    /// Delete resources that matches a regex.
+    #[arg(short, long)]
     filter: Option<String>,
+
+    /// Transforms the filter to a blacklist.
+    #[arg(long)]
     inverse_filter: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if namespace.is_none() {
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+pub enum Resources {
+    ConfigMap,
+}
+
+#[tokio::main()]
+pub async fn handle(args: CommandArgs) -> Result<(), Box<dyn std::error::Error>> {
+    if args.namespace.is_none() {
         debug!("No namespace specified, will use what's in the current context.");
     }
     let client = Client::try_default().await?;
-    match resource_kind {
-        "ConfigMap" => {
-            clean_config_maps(client, namespace.as_ref(), dry_run, filter, inverse_filter).await
+    match args.resource {
+        Resources::ConfigMap => {
+            clean_config_maps(
+                client,
+                args.namespace.as_ref(),
+                args.dry_run,
+                args.filter,
+                args.inverse_filter,
+            )
+            .await
         }
-        _ => todo!("Resource not supported"),
     }
 }
 

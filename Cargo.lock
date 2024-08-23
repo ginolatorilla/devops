@@ -390,6 +390,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "devops"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "colog",
+ "k8s-openapi",
+ "kube",
+ "log",
+ "regex",
+ "tokio",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -898,19 +911,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
-]
-
-[[package]]
-name = "kubeclean"
-version = "0.1.0"
-dependencies = [
- "clap",
- "colog",
- "k8s-openapi",
- "kube",
- "log",
- "regex",
- "tokio",
 ]
 
 [[package]]
