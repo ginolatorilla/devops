@@ -1,28 +1,42 @@
-package root
+package cmd
 
 import (
+	"context"
+	"os/exec"
+
+	"github.com/ginolatorilla/devops/pkg/utils"
+	u "github.com/ginolatorilla/devops/pkg/utils"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
-func NewCommand(appName string) *cobra.Command {
-	var verbosity int
+var AppName = "devops" // Name of the application
+var Version = ""       // Version of the application
+var CommitHash = ""    // Commit hash of the application
 
+func Execute() {
+	cmd := newRootCmd(AppName)
+	cmd.AddCommand(
+		newVersionCmd(Version, CommitHash),
+		newCheckRequirementsCmd(executor),
+	)
+	u.Check(cmd.Execute())
+}
+
+func executor(ctx context.Context, name string, arg ...string) utils.Exec {
+	return exec.CommandContext(ctx, name, arg...)
+}
+
+// newRootCmd creates the root command.
+func newRootCmd(appName string) *cobra.Command {
+	var verbosity int
 	cobra.OnInitialize(
 		func() { setUpLogger(verbosity) },
 	)
-
 	cmd := &cobra.Command{
 		Use:   appName,
-		Short: "A brief description of your application",
-		Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+		Short: "Helper tool for DevOps",
 	}
-
 	cmd.PersistentFlags().CountVarP(
 		&verbosity,
 		"verbose",
@@ -53,7 +67,6 @@ func setUpLogger(verbosity int) {
 		lvl = zap.DebugLevel
 		trace = true
 	}
-
 	config := zap.NewDevelopmentConfig()
 	config.Level = zap.NewAtomicLevelAt(lvl)
 	config.DisableStacktrace = !trace

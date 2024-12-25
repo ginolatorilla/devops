@@ -1,4 +1,4 @@
-package version
+package cmd
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCommand creates the version command.
-func NewCommand(version, commitHash string) *cobra.Command {
+// newVersionCmd creates the version command.
+func newVersionCmd(version, commitHash string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the version of the application",
