@@ -7,6 +7,7 @@ import (
 )
 
 func TestMockExec(t *testing.T) {
+	t.Parallel()
 	m := MockExec{}
 	m.On("Output").Return([]byte("hello"), nil)
 
