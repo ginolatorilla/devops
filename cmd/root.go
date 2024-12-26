@@ -4,7 +4,6 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/ginolatorilla/devops/pkg/utils"
 	u "github.com/ginolatorilla/devops/pkg/utils"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -23,7 +22,7 @@ func Execute() {
 	u.Check(cmd.Execute())
 }
 
-func executor(ctx context.Context, name string, arg ...string) utils.Exec {
+func executor(ctx context.Context, name string, arg ...string) u.Exec {
 	return exec.CommandContext(ctx, name, arg...)
 }
 

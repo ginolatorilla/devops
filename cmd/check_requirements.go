@@ -10,7 +10,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var requirements = map[string]requirement{
+type requirement struct {
+	args       []string
+	getVersion func(ctx context.Context, e u.Executor) string
+	constraint string
+}
+
+var _requirements = map[string]requirement{
 	"kubectl": {
 		args: []string{
 			"version",
@@ -20,30 +26,6 @@ var requirements = map[string]requirement{
 		getVersion: getKubectlVersion,
 		constraint: ">=1.29.0",
 	},
-}
-
-type requirement struct {
-	args       []string
-	getVersion func(ctx context.Context, e u.Executor) string
-	constraint string
-}
-
-func newCheckRequirementsCmd(executor u.Executor) *cobra.Command {
-	return &cobra.Command{
-		Use:   "check-requirements",
-		Short: "Check the requirements for the application",
-		Run: func(cmd *cobra.Command, args []string) {
-			for name, req := range requirements {
-				actualVersion := semver.MustParse(req.getVersion(cmd.Context(), executor))
-				constraint := u.Must(semver.NewConstraint(req.constraint))
-				if !constraint.Check(actualVersion) {
-					panic(fmt.Errorf("%s version %s does not meet requirement %s",
-						name, actualVersion, req.constraint,
-					))
-				}
-			}
-		},
-	}
 }
 
 func getKubectlVersion(ctx context.Context, executor u.Executor) string {
@@ -57,4 +39,35 @@ func getKubectlVersion(ctx context.Context, executor u.Executor) string {
 	var kv kubectlVersion
 	u.Check(json.Unmarshal(version, &kv))
 	return kv.ClientVersion.GitVersion
+}
+
+func newCheckRequirementsCmd(executor u.Executor) *cobra.Command {
+	var quiet bool
+	cmd := &cobra.Command{
+		Use:   "check-requirements",
+		Short: "Check the requirements for the application",
+		Run: func(cmd *cobra.Command, args []string) {
+			checkRequirements(cmd, executor, quiet)
+		},
+	}
+	cmd.Flags().BoolVarP(&quiet, "quiet" /* name */, "q" /* short */, false, /* default */
+		"Print only the errors" /* usage */)
+	return cmd
+}
+
+func checkRequirements(cmd *cobra.Command, executor u.Executor, quiet bool) {
+	ctx := cmd.Context()
+	for name, req := range _requirements {
+		actualVersion := semver.MustParse(req.getVersion(ctx, executor))
+		constraint := u.Must(semver.NewConstraint(req.constraint))
+		if !constraint.Check(actualVersion) {
+			panic(fmt.Errorf("%s version %s does not meet requirement %s",
+				name, actualVersion, req.constraint,
+			))
+		}
+		if !quiet {
+			cmd.SetOut(cmd.OutOrStdout())
+			cmd.Printf("✅ %s (%s)\n", name, actualVersion)
+		}
+	}
 }
