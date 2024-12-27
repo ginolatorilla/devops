@@ -67,15 +67,28 @@ func getJqVersion(ctx context.Context, executor exec.Executor) string {
 
 func newCheckRequirementsCmd(executor exec.Executor) *cobra.Command {
 	var quiet bool
+	var list bool
 	cmd := &cobra.Command{
 		Use:   "check-requirements",
 		Short: "Check the requirements for the application",
 		Run: func(cmd *cobra.Command, args []string) {
+			if list {
+				for name, r := range _requirements {
+					if r.getVersion != nil {
+						cmd.Printf("%s (%s)\n", name, r.constraint)
+						continue
+					}
+					cmd.Println(name)
+					continue
+				}
+				return
+			}
 			checkRequirements(cmd, executor, quiet)
 		},
 	}
 	cmd.Flags().BoolVarP(&quiet, "quiet" /* name */, "q" /* short */, false, /* default */
 		"Print only the errors" /* usage */)
+	cmd.Flags().BoolVar(&list, "list" /* name */, false /* default */, "List requirements" /* usage */)
 	return cmd
 }
 

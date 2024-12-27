@@ -87,3 +87,15 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockExecutor.AssertExpectations(t)
 	mockBash.AssertExpectations(t)
 }
+
+func TestCheckRequirements_List(t *testing.T) {
+	t.Parallel()
+
+	var mockExecutor exec.MockExecutor
+	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
+	cmd.SetArgs([]string{"--list"})
+
+	err := cmd.Execute()
+
+	assert.NoError(t, err)
+}
