@@ -100,7 +100,9 @@ func checkRequirements(cmd *cobra.Command, executor exec.Executor, quiet bool) {
 			if err != nil {
 				panic(fmt.Errorf("%s is not installed", name))
 			}
-			cmd.Printf("✅ %s\n", name)
+			if !quiet {
+				cmd.Printf("✅ %s\n", name)
+			}
 			continue
 		}
 
