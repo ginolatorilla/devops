@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"context"
-	"os/exec"
-
-	u "github.com/ginolatorilla/devops/pkg/utils"
+	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -17,13 +14,9 @@ func Execute() {
 	cmd := newRootCmd(AppName)
 	cmd.AddCommand(
 		newVersionCmd(Version, CommitHash),
-		newCheckRequirementsCmd(executor),
+		newCheckRequirementsCmd(exec.CommandContext),
 	)
-	u.Check(cmd.Execute())
-}
-
-func executor(ctx context.Context, name string, arg ...string) u.Exec {
-	return exec.CommandContext(ctx, name, arg...)
+	_check(cmd.Execute())
 }
 
 // newRootCmd creates the root command.

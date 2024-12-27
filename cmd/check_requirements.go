@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver"
-	u "github.com/ginolatorilla/devops/pkg/utils"
+	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/spf13/cobra"
 )
 
 type requirement struct {
 	args       []string
-	getVersion func(ctx context.Context, e u.Executor) string
+	getVersion func(ctx context.Context, exe exec.Executor) string
 	constraint string
 }
 
@@ -28,20 +28,20 @@ var _requirements = map[string]requirement{
 	},
 }
 
-func getKubectlVersion(ctx context.Context, executor u.Executor) string {
+func getKubectlVersion(ctx context.Context, executor exec.Executor) string {
 	exec := executor(ctx, "kubectl", "version", "--client", "--output", "json")
-	version := u.Must(exec.Output())
+	version := _must(exec.Output())
 	type kubectlVersion struct {
 		ClientVersion struct {
 			GitVersion string `json:"gitVersion"`
 		} `json:"clientVersion"`
 	}
 	var kv kubectlVersion
-	u.Check(json.Unmarshal(version, &kv))
+	_check(json.Unmarshal(version, &kv))
 	return kv.ClientVersion.GitVersion
 }
 
-func newCheckRequirementsCmd(executor u.Executor) *cobra.Command {
+func newCheckRequirementsCmd(executor exec.Executor) *cobra.Command {
 	var quiet bool
 	cmd := &cobra.Command{
 		Use:   "check-requirements",
@@ -55,11 +55,11 @@ func newCheckRequirementsCmd(executor u.Executor) *cobra.Command {
 	return cmd
 }
 
-func checkRequirements(cmd *cobra.Command, executor u.Executor, quiet bool) {
+func checkRequirements(cmd *cobra.Command, executor exec.Executor, quiet bool) {
 	ctx := cmd.Context()
 	for name, req := range _requirements {
 		actualVersion := semver.MustParse(req.getVersion(ctx, executor))
-		constraint := u.Must(semver.NewConstraint(req.constraint))
+		constraint := _must(semver.NewConstraint(req.constraint))
 		if !constraint.Check(actualVersion) {
 			panic(fmt.Errorf("%s version %s does not meet requirement %s",
 				name, actualVersion, req.constraint,

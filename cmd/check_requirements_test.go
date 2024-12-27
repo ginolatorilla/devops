@@ -1,16 +1,24 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
-	u "github.com/ginolatorilla/devops/pkg/utils"
+	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCheckRequirements(t *testing.T) {
 	t.Parallel()
-	mock := u.MockExec{}
-	mock.On("Output").
+	var (
+		mockKubectl  exec.MockExec
+		mockExecutor exec.MockExecutor
+	)
+	mockExecutor.
+		On("Do", context.Background(), "kubectl", "version", "--client", "--output", "json").
+		Return(&mockKubectl)
+	mockKubectl.
+		On("Output").
 		Return(
 			[]byte(`{
 				"clientVersion": {
@@ -19,10 +27,11 @@ func TestCheckRequirements(t *testing.T) {
 			}`),
 			nil,
 		)
-	cmd := newCheckRequirementsCmd(u.NewMockExecutor(&mock))
+	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
 	err := cmd.Execute()
 
 	assert.NoError(t, err)
-	mock.AssertCalled(t, "Output")
+	mockExecutor.AssertExpectations(t)
+	mockKubectl.AssertExpectations(t)
 }
