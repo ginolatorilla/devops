@@ -15,4 +15,3 @@ cd devops
 bash ./<script>
 ```
 
-Run `bash ./<script> -h` to learn more.
