@@ -11,8 +11,9 @@ import (
 func TestCheckRequirements(t *testing.T) {
 	t.Parallel()
 	var (
-		mockKubectl  exec.MockExec
 		mockExecutor exec.MockExecutor
+		mockKubectl  exec.MockExec
+		mockJq       exec.MockExec
 	)
 	mockExecutor.
 		On("Do", context.Background(), "kubectl", "version", "--client", "--output", "json").
@@ -27,6 +28,13 @@ func TestCheckRequirements(t *testing.T) {
 			}`),
 			nil,
 		)
+	mockExecutor.
+		On("Do", context.Background(), "jq", "--version").
+		Return(&mockJq)
+	mockJq.
+		On("Output").
+		Return([]byte("jq-1.7"), nil)
+
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
 	err := cmd.Execute()

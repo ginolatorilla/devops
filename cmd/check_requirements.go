@@ -4,33 +4,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver"
 	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 type requirement struct {
-	args       []string
 	getVersion func(ctx context.Context, exe exec.Executor) string
 	constraint string
 }
 
 var _requirements = map[string]requirement{
 	"kubectl": {
-		args: []string{
-			"version",
-			"--client",
-			"--output", "json",
-		},
 		getVersion: getKubectlVersion,
 		constraint: ">=1.29.0",
+	},
+	"jq": {
+		getVersion: getJqVersion,
+		constraint: ">=1.7.0",
 	},
 }
 
 func getKubectlVersion(ctx context.Context, executor exec.Executor) string {
 	exec := executor(ctx, "kubectl", "version", "--client", "--output", "json")
 	version := _must(exec.Output())
+	zap.S().Debugf(`Command: "%s", Output: "%s"`, exec, version)
 	type kubectlVersion struct {
 		ClientVersion struct {
 			GitVersion string `json:"gitVersion"`
@@ -39,6 +40,14 @@ func getKubectlVersion(ctx context.Context, executor exec.Executor) string {
 	var kv kubectlVersion
 	_check(json.Unmarshal(version, &kv))
 	return kv.ClientVersion.GitVersion
+}
+
+func getJqVersion(ctx context.Context, executor exec.Executor) string {
+	exec := executor(ctx, "jq", "--version")
+	version := _must(exec.Output())
+	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
+	parts := strings.Split(strings.TrimSpace(string(version)), "-")
+	return parts[1]
 }
 
 func newCheckRequirementsCmd(executor exec.Executor) *cobra.Command {
