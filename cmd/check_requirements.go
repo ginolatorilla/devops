@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	goexec "os/exec"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -26,6 +27,7 @@ var _requirements = map[string]requirement{
 		getVersion: getJqVersion,
 		constraint: ">=1.7.0",
 	},
+	"column": {},
 }
 
 func getKubectlVersion(ctx context.Context, executor exec.Executor) string {
@@ -67,6 +69,15 @@ func newCheckRequirementsCmd(executor exec.Executor) *cobra.Command {
 func checkRequirements(cmd *cobra.Command, executor exec.Executor, quiet bool) {
 	ctx := cmd.Context()
 	for name, req := range _requirements {
+		if req.getVersion == nil {
+			_, err := goexec.LookPath(name)
+			if err != nil {
+				panic(fmt.Errorf("%s is not installed", name))
+			}
+			cmd.Printf("✅ %s\n", name)
+			continue
+		}
+
 		actualVersion := semver.MustParse(req.getVersion(ctx, executor))
 		constraint := _must(semver.NewConstraint(req.constraint))
 		if !constraint.Check(actualVersion) {
