@@ -19,6 +19,10 @@ type requirement struct {
 }
 
 var _requirements = map[string]requirement{
+	"bash": {
+		getVersion: getBashVersion,
+		constraint: ">=3.0.0",
+	},
 	"kubectl": {
 		getVersion: getKubectlVersion,
 		constraint: ">=1.29.0",
@@ -28,6 +32,15 @@ var _requirements = map[string]requirement{
 		constraint: ">=1.7.0",
 	},
 	"column": {},
+}
+
+func getBashVersion(ctx context.Context, executor exec.Executor) string {
+	exec := executor(ctx, "bash", "--version")
+	version := _must(exec.Output())
+	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
+	parts := strings.Split(strings.TrimSpace(string(version)), " ")
+	parts = strings.Split(parts[3], "(")
+	return parts[0]
 }
 
 func getKubectlVersion(ctx context.Context, executor exec.Executor) string {

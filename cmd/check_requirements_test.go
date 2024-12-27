@@ -12,9 +12,24 @@ func TestCheckRequirements(t *testing.T) {
 	t.Parallel()
 	var (
 		mockExecutor exec.MockExecutor
+		mockBash     exec.MockExec
 		mockKubectl  exec.MockExec
 		mockJq       exec.MockExec
 	)
+	mockExecutor.
+		On("Do", context.Background(), "bash", "--version").
+		Return(&mockBash)
+	mockBash.
+		On("Output").
+		Return(
+			[]byte(`GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+This is free software; you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.`),
+			nil,
+		)
 	mockExecutor.
 		On("Do", context.Background(), "kubectl", "version", "--client", "--output", "json").
 		Return(&mockKubectl)
@@ -41,31 +56,34 @@ func TestCheckRequirements(t *testing.T) {
 
 	assert.NoError(t, err)
 	mockExecutor.AssertExpectations(t)
+	mockBash.AssertExpectations(t)
 	mockKubectl.AssertExpectations(t)
+	mockJq.AssertExpectations(t)
 }
 
 func TestCheckRequirements_PanicIfNotMet(t *testing.T) {
 	t.Parallel()
 	var (
-		mockKubectl  exec.MockExec
 		mockExecutor exec.MockExecutor
+		mockBash     exec.MockExec
 	)
 	mockExecutor.
-		On("Do", context.Background(), "kubectl", "version", "--client", "--output", "json").
-		Return(&mockKubectl)
-	mockKubectl.
+		On("Do", context.Background(), "bash", "--version").
+		Return(&mockBash)
+	mockBash.
 		On("Output").
 		Return(
-			[]byte(`{
-				"clientVersion": {
-					"gitVersion": "v0.0.0"
-				}
-			}`),
+			[]byte(`GNU bash, version 1.0.0(1)-release (aarch64-unknown-linux-gnu)
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+This is free software; you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.`),
 			nil,
 		)
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
 	assert.Panics(t, func() { cmd.Execute() })
 	mockExecutor.AssertExpectations(t)
-	mockKubectl.AssertExpectations(t)
+	mockBash.AssertExpectations(t)
 }
