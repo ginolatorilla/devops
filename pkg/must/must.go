@@ -1,4 +1,4 @@
-package utils
+package must
 
 func Must[T any](v T, err error) T {
 	Check(err)
