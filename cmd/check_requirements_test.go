@@ -35,3 +35,29 @@ func TestCheckRequirements(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 	mockKubectl.AssertExpectations(t)
 }
+
+func TestCheckRequirements_PanicIfNotMet(t *testing.T) {
+	t.Parallel()
+	var (
+		mockKubectl  exec.MockExec
+		mockExecutor exec.MockExecutor
+	)
+	mockExecutor.
+		On("Do", context.Background(), "kubectl", "version", "--client", "--output", "json").
+		Return(&mockKubectl)
+	mockKubectl.
+		On("Output").
+		Return(
+			[]byte(`{
+				"clientVersion": {
+					"gitVersion": "v0.0.0"
+				}
+			}`),
+			nil,
+		)
+	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
+
+	assert.Panics(t, func() { cmd.Execute() })
+	mockExecutor.AssertExpectations(t)
+	mockKubectl.AssertExpectations(t)
+}
