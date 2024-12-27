@@ -1,0 +1,24 @@
+#!/bin/bash
+# List all Kubernetes resources that have finalizers.
+# Usage: k8s-list-resources-with-finalizers [-h] -- [kubectl get options]
+
+go run main.go check-requirements -q
+mkfifo out
+for kind in $(kubectl api-resources --no-headers | awk '{print $1}'); do
+    kubectl get "$kind" "$@" --output json |
+        jq -r '
+        (
+            .items[] |
+            select(.metadata.finalizers) |
+            [
+                if .metadata.namespace then .metadata.namespace else "<none>" end,
+                .apiVersion + "/" + .kind,
+                .metadata.name,
+                (.metadata.finalizers | join(","))
+            ]
+        ) |
+        @tsv
+        ' >>out &
+done
+echo "NAMESPACE TYPE NAME FINALIZERS
+$(cat out)" | column -t
