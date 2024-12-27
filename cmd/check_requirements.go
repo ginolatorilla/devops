@@ -31,6 +31,10 @@ var _requirements = map[string]requirement{
 		getVersion: getJqVersion,
 		constraint: ">=1.7.0",
 	},
+	"openssl": {
+		getVersion: getOpensslVersion,
+		constraint: ">=3.0.0",
+	},
 	"column": {},
 }
 
@@ -62,6 +66,14 @@ func getJqVersion(ctx context.Context, executor exec.Executor) string {
 	version := _must(exec.Output())
 	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
 	parts := strings.Split(strings.TrimSpace(string(version)), "-")
+	return parts[1]
+}
+
+func getOpensslVersion(ctx context.Context, executor exec.Executor) string {
+	exec := executor(ctx, "openssl", "version")
+	version := _must(exec.Output())
+	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
+	parts := strings.Split(strings.TrimSpace(string(version)), " ")
 	return parts[1]
 }
 

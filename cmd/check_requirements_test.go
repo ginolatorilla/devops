@@ -15,6 +15,7 @@ func TestCheckRequirements(t *testing.T) {
 		mockBash     exec.MockExec
 		mockKubectl  exec.MockExec
 		mockJq       exec.MockExec
+		mockOpenssl  exec.MockExec
 	)
 	mockExecutor.
 		On("Do", context.Background(), "bash", "--version").
@@ -49,6 +50,12 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockJq.
 		On("Output").
 		Return([]byte("jq-1.7"), nil)
+	mockExecutor.
+		On("Do", context.Background(), "openssl", "version").
+		Return(&mockOpenssl)
+	mockOpenssl.
+		On("Output").
+		Return([]byte("OpenSSL 3.4.0 22 Oct 2024 (Library: OpenSSL 3.4.0 22 Oct 2024)"), nil)
 
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
@@ -59,6 +66,7 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockBash.AssertExpectations(t)
 	mockKubectl.AssertExpectations(t)
 	mockJq.AssertExpectations(t)
+	mockOpenssl.AssertExpectations(t)
 }
 
 func TestCheckRequirements_PanicIfNotMet(t *testing.T) {
