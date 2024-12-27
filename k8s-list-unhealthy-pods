@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+go run main.go check-requirements -q
+kubectl get pods "$@" --output json |
+    jq -r '
+    ["NAMESPACE", "NAME", "STATUS"],
+    (
+        .items[] |
+        select(.status.phase == "Failed" or .status.phase == "Unknown") |
+        [.metadata.namespace, .metadata.name, .status.phase]
+    ) |
+    @tsv
+    ' |
+    column -t
