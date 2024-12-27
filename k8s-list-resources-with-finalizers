@@ -3,7 +3,8 @@
 # Usage: k8s-list-resources-with-finalizers [-h] -- [kubectl get options]
 
 go run main.go check-requirements -q
-mkfifo out
+pipe=$(mktemp -u)
+mkfifo "$pipe"
 for kind in $(kubectl api-resources --no-headers | awk '{print $1}'); do
     kubectl get "$kind" "$@" --output json |
         jq -r '
@@ -18,7 +19,8 @@ for kind in $(kubectl api-resources --no-headers | awk '{print $1}'); do
             ]
         ) |
         @tsv
-        ' >>out &
+        ' >>"$pipe" &
 done
 echo "NAMESPACE TYPE NAME FINALIZERS
-$(cat out)" | column -t
+$(cat "$pipe")" | column -t
+rm "$pipe"
