@@ -1,6 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
+usage() {
+    echo "List all Kubernetes pods that are in a failed or unknown state."
+    echo "Usage: k8s-list-unhealthy-pods [-h] [kubectl get options]"
+}
+
+while getopts "h" opts; do
+    case ${opts} in
+    h)
+        usage
+        exit
+        ;;
+    *) ;;
+    esac
+done
+
 go run main.go check-requirements -q
 kubectl get pods "$@" --output json |
     jq -r '
