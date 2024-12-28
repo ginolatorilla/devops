@@ -1,0 +1,34 @@
+#!/bin/bash
+# List all Kubernetes secrets that are certs.
+# Usage: k8s-list-certs [kubectl get options]
+set -euo pipefail
+
+go run main.go check-requirements -q
+pipe=$(mktemp -u)
+mkfifo "$pipe"
+while read -r namespace name certb64; do
+    expiration=$(
+        openssl x509 \
+            -in <(echo "$certb64" | base64 -d) \
+            -noout \
+            -dates \
+            -dateopt iso_8601 |
+            go run main.go tls-cert-countdown --short
+    )
+    echo "$namespace,$name,$expiration" >>"$pipe" &
+done <<<"$(
+    kubectl get secret "$@" --output json |
+        jq -r '
+    (
+        .items[] |
+        select(.type == "kubernetes.io/tls") |
+        [.metadata.namespace, .metadata.name, .data."tls.crt"]
+    ) |
+    @tsv
+    '
+)"
+column -t -s ',' <(
+    echo "NAMESPACE,NAME,EXPIRATION"
+    cat "$pipe"
+)
+rm "$pipe"
