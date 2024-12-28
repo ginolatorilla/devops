@@ -1,0 +1,30 @@
+#!/bin/bash
+# List all Kubernetes Pods that reference a resource by name
+# Usage: k8s-list-resource-users KIND/NAME [kubectl get options]
+set -euo pipefail
+
+go run main.go check-requirements -q
+[[ $# -ge 1 ]] || {
+    echo "Usage: $0 KIND/NAME [kubectl get options]" >&2
+    exit 1
+}
+export resource="${1}"
+shift
+resource="$(kubectl get "${resource}" "$@" -ojson | jq -r '.metadata.name')"
+kubectl get pods "$@" -o json |
+    jq -r '
+    ["NAMESPACE", "POD"],
+    (
+        [
+            .items[] |
+            select(.spec | .. | .name?==env.resource) |
+            [
+                .metadata.namespace,
+                .metadata.name
+            ]
+        ] | 
+        unique 
+        .[]
+    ) | @tsv
+    ' |
+    column -t
