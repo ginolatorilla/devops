@@ -1,6 +1,6 @@
 #!/bin/bash
 # List all Kubernetes pods that are in a failed or unknown state.
-# Usage: k8s-list-unhealthy-pods [-h] [kubectl get options]
+# Usage: k8s-list-unhealthy-pods [kubectl get options]
 set -euo pipefail
 
 go run main.go check-requirements -q

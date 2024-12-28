@@ -1,6 +1,6 @@
 #!/bin/bash
 # List all Kubernetes resources that have finalizers.
-# Usage: k8s-list-resources-with-finalizers [-h] -- [kubectl get options]
+# Usage: k8s-list-resources-with-finalizers [kubectl get options]
 
 go run main.go check-requirements -q
 pipe=$(mktemp -u)
