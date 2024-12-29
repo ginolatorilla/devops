@@ -1,0 +1,54 @@
+#!/bin/bash
+# List all Kubernetes resources with IP addresses
+# Usage: k8s-list-ip-addresses [kubectl get options]
+set -euo pipefail
+
+go run main.go check-requirements -q
+cat <(echo NAMESPACE NAME KIND INTERNAL_ADDRESSES EXTERNAL_ADDRESSES) \
+    <(
+        kubectl get services "$@" -o json |
+            jq -r '
+            .items[] |
+            select(
+                .type != "ExternalName" and
+                .spec.clusterIP and
+                .spec.clusterIP != "None"
+            ) |
+            [
+                .metadata.namespace,
+                .metadata.name,
+                .kind,
+                (.spec.clusterIPs | join(",")),
+                (.spec.externalIPs // [] | join(","))
+            ] |
+            @tsv
+            '
+    ) \
+    <(
+        kubectl get pods "$@" -o json |
+            jq -r '
+            .items[] |
+            [
+                .metadata.namespace,
+                .metadata.name,
+                .kind,
+                ([.status.podIPs[].ip] | join(","))
+            ] |
+            @tsv
+            '
+    ) \
+    <(
+        kubectl get nodes "$@" -o json |
+            jq -r '
+            .items[] |
+            [
+                "<none>",
+                .metadata.name,
+                .kind,
+                ([.status.addresses[] | select(.type=="InternalIP") | .address] | join(",")),
+                ([.status.addresses[] | select(.type=="ExternalIP") | .address] | join(","))
+            ] |
+            @tsv
+            '
+    ) |
+    column -t
