@@ -39,10 +39,6 @@ var _requirements = map[string]requirement{
 		getVersion: getAwsVersion,
 		constraint: ">=2.0.0",
 	},
-	"curl": {
-		getVersion: getCurlVersion,
-		constraint: ">=8.0.0",
-	},
 	"column": {},
 }
 
@@ -94,13 +90,6 @@ func getAwsVersion(ctx context.Context, executor exec.Executor) string {
 	return parts[1]
 }
 
-func getCurlVersion(ctx context.Context, executor exec.Executor) string {
-	exec := executor(ctx, "curl", "--version")
-	version := _must(exec.Output())
-	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
-	parts := strings.Split(strings.TrimSpace(string(version)), " ")
-	return parts[1]
-}
 func newCheckRequirementsCmd(executor exec.Executor) *cobra.Command {
 	var quiet bool
 	var list bool
