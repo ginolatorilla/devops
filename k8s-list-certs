@@ -4,31 +4,19 @@
 set -euo pipefail
 
 go run main.go check-requirements -q
-pipe=$(mktemp -u)
-mkfifo "$pipe"
-while read -r namespace name certb64; do
-    expiration=$(
-        openssl x509 \
-            -in <(echo "$certb64" | base64 -d) \
-            -noout \
-            -dates \
-            -dateopt iso_8601 |
-            go run main.go tls-cert-countdown --short
-    )
-    echo "$namespace,$name,$expiration" >>"$pipe" &
-done <<<"$(
-    kubectl get secret "$@" --output json |
-        jq -r '
+kubectl get secret "$@" --output json |
+    jq -r '
+    ["NAMESPACE", "NAME", "EXPIRATION"],
     (
         .items[] |
         select(.type == "kubernetes.io/tls") |
-        [.metadata.namespace, .metadata.name, .data."tls.crt"]
+        [
+            .metadata.namespace,
+            .metadata.name,
+            "{{ $pemb64 := `\(.data."tls.crt")` }}{{ index ($pemb64 | b64dec | x509) `NotAfter` | relativeTime }}"
+        ]
     ) |
     @tsv
-    '
-)"
-column -t -s ',' <(
-    echo "NAMESPACE,NAME,EXPIRATION"
-    cat "$pipe"
-)
-rm "$pipe"
+    ' |
+    go run main.go template |
+    column -t -s $'\t'
