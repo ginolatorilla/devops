@@ -1,0 +1,8 @@
+#!/bin/bash
+# Generates an RFC 1123 compliant string based on the current time.
+# Usage: timestamp-slug
+set -euo pipefail
+
+go run main.go check-requirements -q
+echo '{{dateInZone "2006-01-02-15-04-05z" (now) "utc" }}' | go run main.go template
+# echo "$(env TZ=UTC date -Iseconds | sed -e 's/+.*//g' -e 's/[:T]/-/g')z"

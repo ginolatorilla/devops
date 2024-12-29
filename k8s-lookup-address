@@ -1,6 +1,6 @@
 #!/bin/bash
-# List all Kubernetes Pods that reference a resource by name
-# Usage: k8s-list-resource-users KIND/NAME [kubectl get options]
+# Finds Kubernetes resources that have the given IP address
+# Usage: k8s-lookup-address IP_ADDR [kubectl get options]
 #
 # Copyright © 2025 Gino Latorilla
 #
@@ -24,27 +24,52 @@
 set -euo pipefail
 
 go run main.go check-requirements -q
-[[ $# -ge 1 ]] || {
-    echo "Usage: $0 KIND/NAME [kubectl get options]" >&2
-    exit 1
-}
-export resource="${1}"
+export address="$1"
 shift
-resource="$(kubectl get "${resource}" "$@" -ojson | jq -r '.metadata.name')"
-kubectl get pods "$@" -o json |
-    jq -r '
-    ["NAMESPACE", "POD"],
-    (
-        [
+cat <(echo NAMESPACE NAME KIND) \
+    <(
+        kubectl get services "$@" -o json |
+            jq -r '
             .items[] |
-            select(.spec | .. | .name?==env.resource) |
+            select(
+                .spec.clusterIPs[] | contains(env.address)
+            ) |
             [
                 .metadata.namespace,
-                .metadata.name
-            ]
-        ] | 
-        unique 
-        .[]
-    ) | @tsv
-    ' |
+                .metadata.name,
+                .kind
+            ] |
+            @tsv
+            '
+    ) \
+    <(
+        kubectl get pods "$@" -o json |
+            jq -r '
+            .items[] |
+            select(
+                .status.podIPs[].ip | contains(env.address)
+            ) |
+            [
+                .metadata.namespace,
+                .metadata.name,
+                .kind
+            ] |
+            @tsv
+            '
+    ) \
+    <(
+        kubectl get nodes "$@" -o json |
+            jq -r '
+            .items[] |
+            select(
+                .status.addresses[].address  | contains(env.address)
+            ) |
+            [
+                "<none>",
+                .metadata.name,
+                .kind
+            ] |
+            @tsv
+            '
+    ) |
     column -t

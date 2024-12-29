@@ -27,6 +27,17 @@ func TestTlsCertCountdown(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+
+	t.Run("Short", func(t *testing.T) {
+		t.Parallel()
+		cmd := newTlsCertCountdownCmd()
+		cmd.SetIn(strings.NewReader(`notAfter=2034-10-22 00:00:00Z`))
+		cmd.SetArgs([]string{"--short"})
+
+		err := cmd.Execute()
+
+		assert.NoError(t, err)
+	})
 }
 
 func TestTlsCertCountdown_PanicIfExpDateMissing(t *testing.T) {
