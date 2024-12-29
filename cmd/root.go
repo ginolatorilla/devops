@@ -16,6 +16,7 @@ func Execute() {
 		newVersionCmd(Version, CommitHash),
 		newCheckRequirementsCmd(exec.CommandContext),
 		newTlsCertCountdownCmd(),
+		newTemplateCmd(),
 	)
 	_check(cmd.Execute())
 }
