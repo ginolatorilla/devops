@@ -17,6 +17,7 @@ func TestCheckRequirements(t *testing.T) {
 		mockJq       exec.MockExec
 		mockOpenssl  exec.MockExec
 		mockAws      exec.MockExec
+		mockCurl     exec.MockExec
 	)
 	mockExecutor.
 		On("Do", context.Background(), "bash", "--version").
@@ -63,6 +64,18 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockAws.
 		On("Output").
 		Return([]byte("aws-cli/2.22.3 Python/3.12.6 Darwin/24.1.0 exe/x86_64"), nil)
+	mockExecutor.
+		On("Do", context.Background(), "curl", "--version").
+		Return(&mockCurl)
+	mockCurl.
+		On("Output").
+		Return([]byte(
+			`curl 8.7.1 (x86_64-apple-darwin24.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12 nghttp2/1.62.0
+Release-Date: 2024-03-27
+Protocols: dict file ftp ftps gopher gophers http https imap imaps ipfs ipns ldap ldaps mqtt pop3 pop3s rtsp smb smbs smtp smtps telnet tftp
+Features: alt-svc AsynchDNS GSS-API HSTS HTTP2 HTTPS-proxy IPv6 Kerberos Largefile libz MultiSSL NTLM SPNEGO SSL threadsafe UnixSockets`),
+			nil,
+		)
 
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
@@ -85,6 +98,7 @@ func TestCheckRequirements_PanicIfNotMet(t *testing.T) {
 		mockJq       exec.MockExec
 		mockOpenssl  exec.MockExec
 		mockAws      exec.MockExec
+		mockCurl     exec.MockExec
 	)
 	mockExecutor.
 		On("Do", context.Background(), "bash", "--version").
@@ -131,6 +145,18 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockAws.
 		On("Output").
 		Return([]byte("aws-cli/0.0.0 Python/3.12.6 Darwin/24.1.0 exe/x86_64"), nil)
+	mockExecutor.
+		On("Do", context.Background(), "curl", "--version").
+		Return(&mockCurl)
+	mockCurl.
+		On("Output").
+		Return([]byte(
+			`curl 0.0.0 (x86_64-apple-darwin24.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12 nghttp2/1.62.0
+Release-Date: 2024-03-27
+Protocols: dict file ftp ftps gopher gophers http https imap imaps ipfs ipns ldap ldaps mqtt pop3 pop3s rtsp smb smbs smtp smtps telnet tftp
+Features: alt-svc AsynchDNS GSS-API HSTS HTTP2 HTTPS-proxy IPv6 Kerberos Largefile libz MultiSSL NTLM SPNEGO SSL threadsafe UnixSockets`),
+			nil,
+		)
 
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
