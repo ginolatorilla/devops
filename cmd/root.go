@@ -17,6 +17,7 @@ func Execute() {
 		newCheckRequirementsCmd(exec.CommandContext),
 		newTlsCertCountdownCmd(),
 		newTemplateCmd(),
+		newCorsTestCmd(),
 	)
 	_check(cmd.Execute())
 }
