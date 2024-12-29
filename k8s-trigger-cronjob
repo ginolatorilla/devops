@@ -1,0 +1,11 @@
+#!/bin/bash
+# Trigger a Kubernetes CronJob by creating a Job with the same spec.
+# Usage: k8s-trigger-cronjob CRONJOB [kubectl create options]
+
+go run main.go check-requirements -q
+cronjob_name="$1"
+shift
+cronjob="$(kubectl get "cronjob/${cronjob_name}" "$@" --output name)"
+kubectl create job \
+    "${cronjob_name}-$(env TZ=UTC date -Iseconds | sed -e 's/+.*//g' -e 's/[:T]/-/g')z" \
+    --from="${cronjob}" "$@"
