@@ -16,6 +16,7 @@ func TestCheckRequirements(t *testing.T) {
 		mockKubectl  exec.MockExec
 		mockJq       exec.MockExec
 		mockOpenssl  exec.MockExec
+		mockAws      exec.MockExec
 	)
 	mockExecutor.
 		On("Do", context.Background(), "bash", "--version").
@@ -56,6 +57,12 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockOpenssl.
 		On("Output").
 		Return([]byte("OpenSSL 3.4.0 22 Oct 2024 (Library: OpenSSL 3.4.0 22 Oct 2024)"), nil)
+	mockExecutor.
+		On("Do", context.Background(), "aws", "--version").
+		Return(&mockAws)
+	mockAws.
+		On("Output").
+		Return([]byte("aws-cli/2.22.3 Python/3.12.6 Darwin/24.1.0 exe/x86_64"), nil)
 
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
@@ -77,6 +84,7 @@ func TestCheckRequirements_PanicIfNotMet(t *testing.T) {
 		mockKubectl  exec.MockExec
 		mockJq       exec.MockExec
 		mockOpenssl  exec.MockExec
+		mockAws      exec.MockExec
 	)
 	mockExecutor.
 		On("Do", context.Background(), "bash", "--version").
@@ -117,6 +125,13 @@ There is NO WARRANTY, to the extent permitted by law.`),
 	mockOpenssl.
 		On("Output").
 		Return([]byte("OpenSSL 0.0.0 22 Oct 2024 (Library: OpenSSL 0.0.0 22 Oct 2024)"), nil)
+	mockExecutor.
+		On("Do", context.Background(), "aws", "--version").
+		Return(&mockAws)
+	mockAws.
+		On("Output").
+		Return([]byte("aws-cli/0.0.0 Python/3.12.6 Darwin/24.1.0 exe/x86_64"), nil)
+
 	cmd := newCheckRequirementsCmd(mockExecutor.Executor())
 
 	assert.Panics(t, func() { cmd.Execute() })

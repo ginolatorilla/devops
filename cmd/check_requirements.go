@@ -35,6 +35,10 @@ var _requirements = map[string]requirement{
 		getVersion: getOpensslVersion,
 		constraint: ">=3.0.0",
 	},
+	"aws": {
+		getVersion: getAwsVersion,
+		constraint: ">=2.0.0",
+	},
 	"column": {},
 }
 
@@ -74,6 +78,15 @@ func getOpensslVersion(ctx context.Context, executor exec.Executor) string {
 	version := _must(exec.Output())
 	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
 	parts := strings.Split(strings.TrimSpace(string(version)), " ")
+	return parts[1]
+}
+
+func getAwsVersion(ctx context.Context, executor exec.Executor) string {
+	exec := executor(ctx, "aws", "--version")
+	version := _must(exec.Output())
+	zap.S().Debugf("\nCommand: %s\nOutput: %s", exec, version)
+	parts := strings.Split(strings.TrimSpace(string(version)), " ")
+	parts = strings.Split(parts[0], "/")
 	return parts[1]
 }
 
