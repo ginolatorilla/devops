@@ -10,6 +10,7 @@ BUILD_FLAGS=-v -buildvcs
 LD_FLAGS=-ldflags="-X '$(PACKAGE)/cmd.AppName=$(APP)' -X '$(PACKAGE)/cmd.Version=$(VERSION)' -X '$(PACKAGE)/cmd.CommitHash=$(COMMIT_HASH)'"
 TEST_REGEX=".*"
 TEST_PACKAGE="./..."
+PREFIX?=$(HOME)/.local
 
 .PHONY: all
 all: test build
@@ -35,6 +36,12 @@ build:
 	@echo "🏗️  Building the application..."
 	go build $(BUILD_FLAGS) $(LD_FLAGS) -o bin/$(APP) $(PACKAGE) 
 
+.PHONY: install
+install: all
+	go install $(BUILD_FLAGS) $(LD_FLAGS) $(PACKAGE)
+	mkdir -p $(PREFIX)/bin
+	install scripts/* $(PREFIX)/bin
+
 .PHONY: clean
 clean:
 	go clean
@@ -53,6 +60,7 @@ help:
 	@echo "Targets:"
 	@echo "  help       - Show this help message"
 	@echo "  all        - Run test, tidy, and build (default)"
+	@echo "  install    - Installs the scripts in \$$PREFIX/bin (default is ~/.local/bin)"
 	@echo "  test       - Run tests"
 	@echo "  test/cover - Run tests with coverage"
 	@echo "  tidy       - Sort out package dependencies"
