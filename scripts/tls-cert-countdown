@@ -23,10 +23,10 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
+devops check-requirements -q
 openssl x509 \
     -in "$1" \
     -noout \
     -dateopt iso_8601 \
     -dates |
-    go run main.go tls-cert-countdown
+    devops tls-cert-countdown

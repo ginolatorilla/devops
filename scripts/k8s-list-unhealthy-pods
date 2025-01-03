@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
+devops check-requirements -q
 kubectl get pods "$@" --output json |
     jq -r '
     ["NAMESPACE", "NAME", "STATUS"],

@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
+devops check-requirements -q
 kubectl get secret "$@" --output json |
     jq -r '
     ["NAMESPACE", "NAME", "EXPIRATION"],
@@ -38,5 +38,5 @@ kubectl get secret "$@" --output json |
     ) |
     @tsv
     ' |
-    go run main.go template |
+    devops template |
     column -t -s $'\t'

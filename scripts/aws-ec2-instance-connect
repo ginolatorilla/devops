@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 set -euo pipefail
-go run main.go check-requirements -q
+devops check-requirements -q
 
 instance=$1
 shift

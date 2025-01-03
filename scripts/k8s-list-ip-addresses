@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
+devops check-requirements -q
 cat <(echo NAMESPACE NAME KIND INTERNAL_ADDRESSES EXTERNAL_ADDRESSES) \
     <(
         kubectl get services "$@" -o json |

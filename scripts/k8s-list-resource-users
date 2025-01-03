@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
+devops check-requirements -q
 [[ $# -ge 1 ]] || {
     echo "Usage: $0 KIND/NAME [kubectl get options]" >&2
     exit 1

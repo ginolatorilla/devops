@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
+devops check-requirements -q
 export address="$1"
 shift
 cat <(echo NAMESPACE NAME KIND) \
