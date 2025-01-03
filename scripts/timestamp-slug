@@ -1,6 +1,6 @@
 #!/bin/bash
-# List all Kubernetes secrets that are certs.
-# Usage: k8s-list-certs [kubectl get options]
+# Generates an RFC 1123 compliant string based on the current time.
+# Usage: timestamp-slug
 #
 # Copyright © 2025 Gino Latorilla
 #
@@ -23,20 +23,7 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
-kubectl get secret "$@" --output json |
-    jq -r '
-    ["NAMESPACE", "NAME", "EXPIRATION"],
-    (
-        .items[] |
-        select(.type == "kubernetes.io/tls") |
-        [
-            .metadata.namespace,
-            .metadata.name,
-            "{{ $pemb64 := `\(.data."tls.crt")` }}{{ index ($pemb64 | b64dec | x509) `NotAfter` | relativeTime }}"
-        ]
-    ) |
-    @tsv
-    ' |
-    go run main.go template |
-    column -t -s $'\t'
+devops check-requirements -q
+echo '{{dateInZone "2006-01-02-15-04-05z" (now) "utc" }}' | devops template
+# Uncomment if you want to use the shell script version.
+# echo "$(env TZ=UTC date -Iseconds | sed -e 's/+.*//g' -e 's/[:T]/-/g')z"

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Finds Kubernetes resources that have the given IP address
-# Usage: k8s-lookup-address IP_ADDR [kubectl get options]
+# List all Kubernetes Pods that reference a resource by name
+# Usage: k8s-list-resource-users KIND/NAME [kubectl get options]
 #
 # Copyright © 2025 Gino Latorilla
 #
@@ -23,53 +23,28 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-go run main.go check-requirements -q
-export address="$1"
+devops check-requirements -q
+[[ $# -ge 1 ]] || {
+    echo "Usage: $0 KIND/NAME [kubectl get options]" >&2
+    exit 1
+}
+export resource="${1}"
 shift
-cat <(echo NAMESPACE NAME KIND) \
-    <(
-        kubectl get services "$@" -o json |
-            jq -r '
+resource="$(kubectl get "${resource}" "$@" -ojson | jq -r '.metadata.name')"
+kubectl get pods "$@" -o json |
+    jq -r '
+    ["NAMESPACE", "POD"],
+    (
+        [
             .items[] |
-            select(
-                .spec.clusterIPs[] | contains(env.address)
-            ) |
+            select(.spec | .. | .name?==env.resource) |
             [
                 .metadata.namespace,
-                .metadata.name,
-                .kind
-            ] |
-            @tsv
-            '
-    ) \
-    <(
-        kubectl get pods "$@" -o json |
-            jq -r '
-            .items[] |
-            select(
-                .status.podIPs[].ip | contains(env.address)
-            ) |
-            [
-                .metadata.namespace,
-                .metadata.name,
-                .kind
-            ] |
-            @tsv
-            '
-    ) \
-    <(
-        kubectl get nodes "$@" -o json |
-            jq -r '
-            .items[] |
-            select(
-                .status.addresses[].address  | contains(env.address)
-            ) |
-            [
-                "<none>",
-                .metadata.name,
-                .kind
-            ] |
-            @tsv
-            '
-    ) |
+                .metadata.name
+            ]
+        ] | 
+        unique 
+        .[]
+    ) | @tsv
+    ' |
     column -t

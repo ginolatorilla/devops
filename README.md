@@ -12,6 +12,9 @@ A collection of different tools that I use for DevOps-related tasks.
 ```shell
 git clone https://github.com/ginolatorilla/devops.git
 cd devops
-bash ./<script>
+make install
 ```
 
+## Scripts
+
+See `scripts` to learn more.

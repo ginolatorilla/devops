@@ -21,7 +21,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-go run main.go check-requirements -q
+devops check-requirements -q
 pipe=$(mktemp -u)
 mkfifo "$pipe"
 for kind in $(kubectl api-resources --no-headers | awk '{print $1}'); do

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Logs into an AWS EC2 instance using EC2 Instance Connect (if supported).
-# Usage: aws-ec2-instance-connect INSTANCE_ID [SSH_OPTIONS]
+# List all Kubernetes pods that are in a failed or unknown state.
+# Usage: k8s-list-unhealthy-pods [kubectl get options]
 #
 # Copyright © 2025 Gino Latorilla
 #
@@ -22,16 +22,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 set -euo pipefail
-go run main.go check-requirements -q
 
-instance=$1
-shift
-instance_ip=$(aws ec2 describe-instances --instance-ids "$1" --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
-tmpdir=$(mktemp -d)
-
-ssh-keygen -f "$tmpdir/id_rsa" -N ''
-aws ec2-instance-connect send-ssh-public-key --instance-id "$instance" --instance-os-user ec2-user --ssh-public-key "$(cat "$tmpdir/id_rsa.pub")" >/dev/null
-ssh ec2-user@"$instance_ip" -i "$tmpdir"/id_rsa
-
-# Delete the temporary key.
-rm -rf "$tmpdir"
+devops check-requirements -q
+kubectl get pods "$@" --output json |
+    jq -r '
+    ["NAMESPACE", "NAME", "STATUS"],
+    (
+        .items[] |
+        select(.status.phase == "Failed" or .status.phase == "Unknown") |
+        [.metadata.namespace, .metadata.name, .status.phase]
+    ) |
+    @tsv
+    ' |
+    column -t
