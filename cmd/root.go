@@ -22,6 +22,11 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/ginolatorilla/devops/cmd/kubectl_list_certs"
 	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -32,15 +37,30 @@ var Version = ""       // Version of the application
 var CommitHash = ""    // Commit hash of the application
 
 func Execute() {
-	cmd := newRootCmd(AppName)
-	cmd.AddCommand(
-		newVersionCmd(Version, CommitHash),
-		newCheckRequirementsCmd(exec.CommandContext),
-		newTlsCertCountdownCmd(),
-		newTemplateCmd(),
-		newCorsTestCmd(),
-	)
-	_check(cmd.Execute())
+	plugin := filepath.Base(os.Args[0])
+	if pluginFromEnv := os.Getenv("DEVOPS_BINARY"); pluginFromEnv != "" {
+		plugin = pluginFromEnv
+	}
+
+	var command *cobra.Command
+	switch plugin {
+	case "kubectl-list_certs":
+		command = kubectl_list_certs.NewCommand()
+	default:
+		command = newRootCmd(AppName)
+		command.AddCommand(
+			newVersionCmd(Version, CommitHash),
+			newCheckRequirementsCmd(exec.CommandContext),
+			newTlsCertCountdownCmd(),
+			newTemplateCmd(),
+			newCorsTestCmd(),
+		)
+	}
+
+	if err := command.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // newRootCmd creates the root command.
