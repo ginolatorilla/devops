@@ -6,7 +6,7 @@ GITHUB_DOMAIN=github.com
 COMMIT_HASH=$(shell git rev-parse HEAD)
 PACKAGE=$(GITHUB_DOMAIN)/$(GITHUB_OWNER)/$(APP)
 
-BUILD_FLAGS=-v -buildvcs 
+BUILD_FLAGS=-v -buildvcs
 LD_FLAGS=-ldflags="-X '$(PACKAGE)/cmd.AppName=$(APP)' -X '$(PACKAGE)/cmd.Version=$(VERSION)' -X '$(PACKAGE)/cmd.CommitHash=$(COMMIT_HASH)'"
 TEST_REGEX=".*"
 TEST_PACKAGE="./..."
@@ -34,13 +34,13 @@ tidy:
 .PHONY: build
 build:
 	@echo "🏗️  Building the application..."
-	go build $(BUILD_FLAGS) $(LD_FLAGS) -o bin/$(APP) $(PACKAGE) 
+	go build $(BUILD_FLAGS) $(LD_FLAGS) -o bin/$(APP) $(PACKAGE)
 
 .PHONY: install
 install: all
 	go install $(BUILD_FLAGS) $(LD_FLAGS) $(PACKAGE)
 	mkdir -p $(PREFIX)/bin
-	install scripts/* $(PREFIX)/bin
+	ln -s $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_certs
 
 .PHONY: clean
 clean:
