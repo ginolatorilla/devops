@@ -45,7 +45,7 @@ func Execute() {
 	var command *cobra.Command
 	switch plugin {
 	case "kubectl-list_certs":
-		command = kubectl_list_certs.NewCommand()
+		command = kubectl_list_certs.NewCommand(nil)
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(
