@@ -3,6 +3,7 @@ package kubectl_list_certs
 import (
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
@@ -73,7 +74,13 @@ func NewCommand(kubeApi kubernetes.Interface) *cobra.Command {
 				tlsCertKey := "tls.crt"
 				cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 				if err != nil {
-					return fmt.Errorf("failed to parse certificate: %w", err)
+					slog.Warn(
+						"failed to parse certificate",
+						"namepsace", secret.GetNamespace(),
+						"secretName", secret.GetName(),
+						"key", tlsCertKey,
+						"error", err)
+					continue
 				}
 
 				table.Rows[i] = metaV1.TableRow{
