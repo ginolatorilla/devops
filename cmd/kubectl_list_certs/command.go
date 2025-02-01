@@ -2,6 +2,7 @@ package kubectl_list_certs
 
 import (
 	"crypto/tls"
+	"fmt"
 
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
@@ -9,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
-	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
-func NewCommand() *cobra.Command {
+func NewCommand(kubeApi kubernetes.Interface) *cobra.Command {
 	configFlags := genericclioptions.NewConfigFlags(true)
 	var allNamespaces bool
 	var noHeaders bool
@@ -20,21 +21,22 @@ func NewCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "kubectl_list_certs",
 		Short: "List certificates in the cluster",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeConfig := configFlags.ToRawKubeConfigLoader()
-			config, err := kubeConfig.ClientConfig()
-			if err != nil {
-				panic(err)
-			}
+			// config, err := kubeConfig.ClientConfig()
+			// if err != nil {
+			// 	panic(err)
+			// }
 
 			var namespace string
 			if !allNamespaces {
 				namespace = *configFlags.Namespace
 			}
 			if namespace == "" {
+				var err error
 				namespace, _, err = kubeConfig.Namespace()
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("failed to get namespace: %w", err)
 				}
 			}
 
@@ -43,14 +45,16 @@ func NewCommand() *cobra.Command {
 				NoHeaders:     noHeaders,
 			})
 
-			client := coreV1.NewForConfigOrDie(config)
+			client := kubeApi.CoreV1()
+
+			// client := coreV1.NewForConfigOrDie(config)
 			secrets, err := client.
 				Secrets(namespace).
 				List(cmd.Context(), metaV1.ListOptions{
 					FieldSelector: "type=kubernetes.io/tls",
 				})
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to list secrets: %w", err)
 			}
 
 			table := metaV1.Table{
@@ -69,7 +73,7 @@ func NewCommand() *cobra.Command {
 				tlsCertKey := "tls.crt"
 				cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("failed to parse certificate: %w", err)
 				}
 
 				table.Rows[i] = metaV1.TableRow{
@@ -86,7 +90,7 @@ func NewCommand() *cobra.Command {
 
 			}
 
-			printer.PrintObj(&table, cmd.OutOrStdout())
+			return printer.PrintObj(&table, cmd.OutOrStdout())
 		},
 	}
 

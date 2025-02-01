@@ -12,7 +12,10 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fatih/structs v1.1.0
+	k8s.io/api v0.32.1
+	k8s.io/apimachinery v0.32.1
 	k8s.io/cli-runtime v0.32.1
+	k8s.io/client-go v0.32.1
 )
 
 require (
@@ -66,9 +69,6 @@ require (
 	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.32.1 // indirect
-	k8s.io/apimachinery v0.32.1 // indirect
-	k8s.io/client-go v0.32.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738 // indirect
