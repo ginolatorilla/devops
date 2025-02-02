@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_certs"
+	"github.com/ginolatorilla/devops/cmd/kubectl_list_unhealthy_pods"
 	"github.com/ginolatorilla/devops/cmd/kubectl_lookup_address"
 	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/ginolatorilla/devops/pkg/kube"
@@ -50,6 +51,8 @@ func Execute() {
 		command = kubectl_list_certs.NewCommand(kube.DefaultApiFactory)
 	case "kubectl-lookup_address":
 		command = kubectl_lookup_address.NewCommand(kube.DefaultApiFactory)
+	case "kubectl-list_unhealthy_pods":
+		command = kubectl_list_unhealthy_pods.NewCommand(kube.DefaultApiFactory)
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(

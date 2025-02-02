@@ -42,6 +42,7 @@ install: all
 	mkdir -p $(PREFIX)/bin
 	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_certs
 	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-lookup_address
+	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_unhealthy_pods
 
 .PHONY: clean
 clean:
