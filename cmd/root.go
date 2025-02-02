@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ginolatorilla/devops/cmd/kubectl_list_addresses"
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_certs"
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_unhealthy_pods"
 	"github.com/ginolatorilla/devops/cmd/kubectl_lookup_address"
@@ -56,6 +57,8 @@ func Execute() {
 		command = kubectl_list_unhealthy_pods.NewCommand(kube.DefaultApiFactory)
 	case "kubectl-trigger_cronjob":
 		command = kubectl_trigger_cronjob.NewCommand(kube.DefaultApiFactory)
+	case "kubectl-list_addresses":
+		command = kubectl_list_addresses.NewCommand(kube.DefaultApiFactory)
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(
