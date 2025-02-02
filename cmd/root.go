@@ -28,6 +28,7 @@ import (
 
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_certs"
 	"github.com/ginolatorilla/devops/pkg/exec"
+	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -45,7 +46,7 @@ func Execute() {
 	var command *cobra.Command
 	switch plugin {
 	case "kubectl-list_certs":
-		command = kubectl_list_certs.NewCommand(nil)
+		command = kubectl_list_certs.NewCommand(kube.DefaultApiFactory)
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(

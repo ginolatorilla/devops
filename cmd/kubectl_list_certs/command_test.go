@@ -7,10 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ginolatorilla/devops/pkg/kube"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -22,7 +25,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 
-		cmd := NewCommand(client)
+		cmd := testable(client)
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -32,7 +35,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 		setKubeConfigEnv(t, "testdata/ok/kubeConfig.yaml")
 
-		cmd := NewCommand(client)
+		cmd := testable(client)
 		assert.NoError(cmd.Execute())
 	})
 
@@ -41,7 +44,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "default", "test")
 		setKubeConfigEnv(t, "testdata/missing-namespace/kubeConfig.yaml")
 
-		cmd := NewCommand(client)
+		cmd := testable(client)
 		assert.NoError(cmd.Execute())
 	})
 
@@ -51,7 +54,7 @@ func TestNewCommand(t *testing.T) {
 			return true, &coreV1.SecretList{}, fmt.Errorf("canned error from test")
 		})
 
-		cmd := NewCommand(client)
+		cmd := testable(client)
 		assert.Error(cmd.Execute())
 	})
 
@@ -59,7 +62,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		setKubeConfigEnv(t, "testdata/invalid/kubeConfig.yaml")
 
-		cmd := NewCommand(client)
+		cmd := testable(client)
 		assert.Error(cmd.Execute())
 	})
 
@@ -67,8 +70,14 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "default", "test")
 
-		cmd := NewCommand(client)
+		cmd := testable(client)
 		assert.NoError(cmd.Execute())
+	})
+}
+
+func testable(client *fake.Clientset) *cobra.Command {
+	return NewCommand(func(configFlags *kube.ConfigFlags) kubernetes.Interface {
+		return client
 	})
 }
 
