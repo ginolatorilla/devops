@@ -10,22 +10,37 @@ import (
 )
 
 type Runner struct {
-	configFlags *ConfigFlags
-	apiFactory  ApiFactory
-	mainFunc    MainFunc
+	configFlags    *ConfigFlags
+	apiFactory     ApiFactory
+	handler        Handler
+	tabularHandler TabularHandler
 }
 
-type MainFunc func(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, args []string, configFlags *ConfigFlags) metaV1.Table
+type HandlerArgs struct {
+	KubeApi     kubernetes.Interface
+	Namespace   string
+	Cmd         *cobra.Command
+	Args        []string
+	ConfigFlags *ConfigFlags
+}
 
-func NewRunner(
-	configFlags *ConfigFlags,
-	apiFactory ApiFactory,
-	mainFunc MainFunc,
-) *Runner {
+type Handler func(args HandlerArgs)
+
+func NewRunner(configFlags *ConfigFlags, apiFactory ApiFactory, handler Handler) *Runner {
 	return &Runner{
 		configFlags: configFlags,
 		apiFactory:  apiFactory,
-		mainFunc:    mainFunc,
+		handler:     handler,
+	}
+}
+
+type TabularHandler func(args HandlerArgs) metaV1.Table
+
+func NewTabularRunner(configFlags *ConfigFlags, apiFactory ApiFactory, handler TabularHandler) *Runner {
+	return &Runner{
+		configFlags:    configFlags,
+		apiFactory:     apiFactory,
+		tabularHandler: handler,
 	}
 }
 
@@ -37,10 +52,24 @@ func (r *Runner) ToRun() func(cmd *cobra.Command, args []string) {
 			panic(fmt.Errorf("failed to get effective namespace: %w", err))
 		}
 
-		table := r.mainFunc(r.apiFactory(r.configFlags), namespace, cmd, args, r.configFlags)
+		handlerArgs := HandlerArgs{
+			KubeApi:     r.apiFactory(r.configFlags),
+			Namespace:   namespace,
+			Cmd:         cmd,
+			Args:        args,
+			ConfigFlags: r.configFlags,
+		}
 
-		if err := r.configFlags.GetTablePrinter().PrintObj(&table, cmd.OutOrStdout()); err != nil {
-			panic(fmt.Errorf("failed to print table: %w", err))
+		if r.handler != nil {
+			r.handler(handlerArgs)
+			return
+		}
+
+		if r.tabularHandler != nil {
+			table := r.tabularHandler(handlerArgs)
+			if err := r.configFlags.GetTablePrinter().PrintObj(&table, cmd.OutOrStdout()); err != nil {
+				panic(fmt.Errorf("failed to print table: %w", err))
+			}
 		}
 	}
 }

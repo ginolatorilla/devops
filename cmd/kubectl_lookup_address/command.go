@@ -7,7 +7,6 @@ import (
 
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
@@ -18,7 +17,7 @@ import (
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	configFlags := kube.NewConfigFlags()
-	runner := kube.NewRunner(configFlags, apiFactory, lookupAddress)
+	runner := kube.NewTabularRunner(configFlags, apiFactory, lookupAddress)
 
 	command := &cobra.Command{
 		Use:       "kubectl-lookup_address IP_ADDRESS",
@@ -32,11 +31,11 @@ func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	return command
 }
 
-func lookupAddress(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, args []string, configFlags *kube.ConfigFlags) metaV1.Table {
-	ipAddress := args[0]
-	client := kubeApi.CoreV1()
+func lookupAddress(a kube.HandlerArgs) metaV1.Table {
+	ipAddress := a.Args[0]
+	client := a.KubeApi.CoreV1()
 
-	services, err := client.Services(namespace).List(cmd.Context(), metaV1.ListOptions{})
+	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		panic(fmt.Errorf("failed to list services: %w", err))
 	}
@@ -54,7 +53,7 @@ func lookupAddress(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Co
 		}
 	}
 
-	pods, err := client.Pods(namespace).List(cmd.Context(), metaV1.ListOptions{})
+	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		slog.Warn("failed to list pods", "error", err)
 	}
@@ -66,7 +65,7 @@ func lookupAddress(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Co
 		}
 	}
 
-	nodes, err := client.Nodes().List(cmd.Context(), metaV1.ListOptions{})
+	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		slog.Warn("failed to list nodes", "error", err)
 	}

@@ -29,6 +29,7 @@ import (
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_certs"
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_unhealthy_pods"
 	"github.com/ginolatorilla/devops/cmd/kubectl_lookup_address"
+	"github.com/ginolatorilla/devops/cmd/kubectl_trigger_cronjob"
 	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
@@ -53,6 +54,8 @@ func Execute() {
 		command = kubectl_lookup_address.NewCommand(kube.DefaultApiFactory)
 	case "kubectl-list_unhealthy_pods":
 		command = kubectl_list_unhealthy_pods.NewCommand(kube.DefaultApiFactory)
+	case "kubectl-trigger_cronjob":
+		command = kubectl_trigger_cronjob.NewCommand(kube.DefaultApiFactory)
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(

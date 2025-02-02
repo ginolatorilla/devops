@@ -6,7 +6,6 @@ import (
 
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +14,7 @@ import (
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	configFlags := kube.NewConfigFlags()
-	runner := kube.NewRunner(configFlags, apiFactory, listUnhealthyPods)
+	runner := kube.NewTabularRunner(configFlags, apiFactory, listUnhealthyPods)
 
 	command := &cobra.Command{
 		Use:   "kubectl-list_unhealthy_pods",
@@ -27,11 +26,11 @@ func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	return command
 }
 
-func listUnhealthyPods(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, args []string, configFlags *kube.ConfigFlags) metaV1.Table {
-	client := kubeApi.CoreV1()
+func listUnhealthyPods(a kube.HandlerArgs) metaV1.Table {
+	client := a.KubeApi.CoreV1()
 
 	var pods []coreV1.Pod
-	allPods, err := client.Pods(namespace).List(cmd.Context(), metaV1.ListOptions{})
+	allPods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	for _, pod := range allPods.Items {
 		if pod.Status.Phase == coreV1.PodFailed {
 			for _, cs := range pod.Status.ContainerStatuses {

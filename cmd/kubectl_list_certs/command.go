@@ -10,12 +10,11 @@ import (
 	"github.com/spf13/cobra"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	configFlags := kube.NewConfigFlags()
-	runner := kube.NewRunner(configFlags, apiFactory, listCerts)
+	runner := kube.NewTabularRunner(configFlags, apiFactory, listCerts)
 
 	command := &cobra.Command{
 		Use:   "kubectl_list_certs",
@@ -27,11 +26,11 @@ func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	return command
 }
 
-func listCerts(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, args []string, configFlags *kube.ConfigFlags) metaV1.Table {
-	client := kubeApi.CoreV1()
+func listCerts(a kube.HandlerArgs) metaV1.Table {
+	client := a.KubeApi.CoreV1()
 	secrets, err := client.
-		Secrets(namespace).
-		List(cmd.Context(), metaV1.ListOptions{
+		Secrets(a.Namespace).
+		List(a.Cmd.Context(), metaV1.ListOptions{
 			FieldSelector: "type=kubernetes.io/tls",
 		})
 	if err != nil {
