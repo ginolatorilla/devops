@@ -15,7 +15,7 @@ type Runner struct {
 	mainFunc    MainFunc
 }
 
-type MainFunc func(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, configFlags *ConfigFlags) (metaV1.Table, error)
+type MainFunc func(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, args []string, configFlags *ConfigFlags) metaV1.Table
 
 func NewRunner(
 	configFlags *ConfigFlags,
@@ -29,21 +29,18 @@ func NewRunner(
 	}
 }
 
-func (r *Runner) ToRunE() func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
+func (r *Runner) ToRun() func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
 		kubeConfig := r.configFlags.ToRawKubeConfigLoader()
 		namespace, err := r.configFlags.GetEffectiveNamespace(kubeConfig)
 		if err != nil {
-			return fmt.Errorf("failed to get effective namespace: %w", err)
+			panic(fmt.Errorf("failed to get effective namespace: %w", err))
 		}
 
-		table, err := r.mainFunc(r.apiFactory(r.configFlags), namespace, cmd, r.configFlags)
-		if err != nil {
-			return err
-		}
+		table := r.mainFunc(r.apiFactory(r.configFlags), namespace, cmd, args, r.configFlags)
 
-		return r.configFlags.
-			GetTablePrinter().
-			PrintObj(&table, cmd.OutOrStdout())
+		if err := r.configFlags.GetTablePrinter().PrintObj(&table, cmd.OutOrStdout()); err != nil {
+			panic(fmt.Errorf("failed to print table: %w", err))
+		}
 	}
 }

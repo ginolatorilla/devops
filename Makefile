@@ -41,6 +41,7 @@ install: all
 	go install $(BUILD_FLAGS) $(LD_FLAGS) $(PACKAGE)
 	mkdir -p $(PREFIX)/bin
 	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_certs
+	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-lookup_address
 
 .PHONY: clean
 clean:

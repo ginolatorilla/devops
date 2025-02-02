@@ -20,14 +20,14 @@ func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "kubectl_list_certs",
 		Short: "List certificates in the cluster",
-		RunE:  runner.ToRunE(),
+		Run:   runner.ToRun(),
 	}
 
 	configFlags.AddFlags(command.Flags())
 	return command
 }
 
-func listCerts(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, configFlags *kube.ConfigFlags) (metaV1.Table, error) {
+func listCerts(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Command, args []string, configFlags *kube.ConfigFlags) metaV1.Table {
 	client := kubeApi.CoreV1()
 	secrets, err := client.
 		Secrets(namespace).
@@ -35,7 +35,7 @@ func listCerts(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Comman
 			FieldSelector: "type=kubernetes.io/tls",
 		})
 	if err != nil {
-		return metaV1.Table{}, fmt.Errorf("failed to list secrets: %w", err)
+		panic(fmt.Errorf("failed to list secrets: %w", err))
 	}
 
 	table := metaV1.Table{
@@ -75,5 +75,5 @@ func listCerts(kubeApi kubernetes.Interface, namespace string, cmd *cobra.Comman
 			Object: runtime.RawExtension{Object: &secret},
 		}
 	}
-	return table, nil
+	return table
 }
