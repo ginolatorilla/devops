@@ -1,13 +1,14 @@
 package kubectl_list_finalizers
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/itchyny/gojq"
 	"github.com/spf13/cobra"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 )
 
@@ -44,9 +45,7 @@ func listResourceUsers(a kube.HandlerArgs) metaV1.Table {
 	}
 
 	for gvr := range gvrs {
-		ctx, cancel := context.WithCancel(a.Cmd.Context())
-		defer cancel()
-		resources, err := a.DynamicApi.Resource(gvr).Namespace(a.Namespace).List(ctx, metaV1.ListOptions{})
+		resources, err := a.DynamicApi.Resource(gvr).Namespace(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 		if err != nil {
 			continue
 		}
@@ -86,9 +85,15 @@ func listResourceUsers(a kube.HandlerArgs) metaV1.Table {
 					Cells: []interface{}{
 						v2.Kind,
 						v2.Name,
-						v2.Namespace,
 						finalizer,
 					},
+					Object: runtime.RawExtension{Object: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": v2.Namespace,
+							},
+						},
+					}},
 				})
 			}
 		}
