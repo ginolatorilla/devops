@@ -45,6 +45,7 @@ install: all
 	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_unhealthy_pods
 	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-trigger_cronjob
 	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_addresses
+	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_finalizers
 
 .PHONY: clean
 clean:
