@@ -32,7 +32,6 @@ import (
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_unhealthy_pods"
 	"github.com/ginolatorilla/devops/cmd/kubectl_lookup_address"
 	"github.com/ginolatorilla/devops/cmd/kubectl_trigger_cronjob"
-	"github.com/ginolatorilla/devops/pkg/exec"
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -66,8 +65,6 @@ func Execute() {
 		command = newRootCmd(AppName)
 		command.AddCommand(
 			newVersionCmd(Version, CommitHash),
-			newCheckRequirementsCmd(exec.CommandContext),
-			newTlsCertCountdownCmd(),
 			newTemplateCmd(),
 			newCorsTestCmd(),
 		)
