@@ -20,6 +20,8 @@ type DynamicApiFactory func(configFlags *ConfigFlags) (discovery.DiscoveryInterf
 
 func DefaultDynamicApiFactory(configFlags *ConfigFlags) (discovery.DiscoveryInterface, dynamic.Interface) {
 	config, err := configFlags.ToRESTConfig()
+	const DisableRateLimiter = -1
+	config.QPS = DisableRateLimiter
 	if err != nil {
 		panic(err)
 	}
