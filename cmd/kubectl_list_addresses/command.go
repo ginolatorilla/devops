@@ -6,9 +6,10 @@ import (
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
 
+	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	gocoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
@@ -52,7 +53,7 @@ func listAddresses(a kube.HandlerArgs) metaV1.Table {
 	return table
 }
 
-func getServiceAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *metaV1.Table) error {
+func getServiceAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
 	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
@@ -86,10 +87,10 @@ func getServiceAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, tabl
 	return nil
 }
 
-func getPodAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *metaV1.Table) error {
+func getPodAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
-		slog.Warn("failed to list pods", "error", err)
+		return err
 	}
 	for _, pod := range pods.Items {
 		for _, ip := range pod.Status.PodIPs {
@@ -102,14 +103,14 @@ func getPodAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *m
 	return nil
 }
 
-func getNodeAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *metaV1.Table) error {
+func getNodeAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
 	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
-		slog.Warn("failed to list nodes", "error", err)
+		return err
 	}
 	for _, node := range nodes.Items {
 		for _, address := range node.Status.Addresses {
-			if address.Type == "Hostname" {
+			if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
 				continue
 			}
 			table.Rows = append(
