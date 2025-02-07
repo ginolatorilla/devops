@@ -8,6 +8,7 @@ import (
 
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
@@ -36,9 +37,25 @@ func listAddresses(a kube.HandlerArgs) metaV1.Table {
 		},
 	}
 
+	if err := getServiceAddresses(a, client, &table); err != nil {
+		slog.Warn("failed to list services", "error", err)
+	}
+
+	if err := getPodAddresses(a, client, &table); err != nil {
+		slog.Warn("failed to list pods", "error", err)
+	}
+
+	if err := getNodeAddresses(a, client, &table); err != nil {
+		slog.Warn("failed to list nodes", "error", err)
+	}
+
+	return table
+}
+
+func getServiceAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *metaV1.Table) error {
 	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
-		slog.Warn("failed to list services", "error", err)
+		return err
 	}
 
 	for _, service := range services.Items {
@@ -46,60 +63,46 @@ func listAddresses(a kube.HandlerArgs) metaV1.Table {
 			if ip == "" || ip == "None" {
 				continue
 			}
-			table.Rows = append(table.Rows, metaV1.TableRow{
-				Cells: []interface{}{
-					"Service",
-					service.Name,
-					"ClusterIP",
-					ip,
-				},
-				Object: runtime.RawExtension{Object: &service},
-			})
+			table.Rows = append(
+				table.Rows,
+				newTableRow("Service", service.Name, "ClusterIP", ip, &service),
+			)
 		}
 
 		for _, ip := range service.Spec.ExternalIPs {
-			table.Rows = append(table.Rows, metaV1.TableRow{
-				Cells: []interface{}{
-					"Service",
-					service.Name,
-					"ExternalIP",
-					ip,
-				},
-				Object: runtime.RawExtension{Object: &service},
-			})
+			table.Rows = append(
+				table.Rows,
+				newTableRow("Service", service.Name, "ExternalIP", ip, &service),
+			)
 		}
 
 		if service.Spec.LoadBalancerIP != "" {
-			table.Rows = append(table.Rows, metaV1.TableRow{
-				Cells: []interface{}{
-					"Service",
-					service.Name,
-					"LoadBalancerIP",
-					service.Spec.LoadBalancerIP,
-				},
-				Object: runtime.RawExtension{Object: &service},
-			})
+			table.Rows = append(
+				table.Rows,
+				newTableRow("Service", service.Name, "LoadBalancerIP", service.Spec.LoadBalancerIP, &service),
+			)
 		}
 	}
+	return nil
+}
 
+func getPodAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *metaV1.Table) error {
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		slog.Warn("failed to list pods", "error", err)
 	}
 	for _, pod := range pods.Items {
 		for _, ip := range pod.Status.PodIPs {
-			table.Rows = append(table.Rows, metaV1.TableRow{
-				Cells: []interface{}{
-					"Pod",
-					pod.Name,
-					"PodIP",
-					ip.IP,
-				},
-				Object: runtime.RawExtension{Object: &pod},
-			})
+			table.Rows = append(
+				table.Rows,
+				newTableRow("Pod", pod.Name, "PodIP", ip.IP, &pod),
+			)
 		}
 	}
+	return nil
+}
 
+func getNodeAddresses(a kube.HandlerArgs, client coreV1.CoreV1Interface, table *metaV1.Table) error {
 	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		slog.Warn("failed to list nodes", "error", err)
@@ -109,17 +112,18 @@ func listAddresses(a kube.HandlerArgs) metaV1.Table {
 			if address.Type == "Hostname" {
 				continue
 			}
-			table.Rows = append(table.Rows, metaV1.TableRow{
-				Cells: []interface{}{
-					"Node",
-					node.Name,
-					address.Type,
-					address.Address,
-				},
-				Object: runtime.RawExtension{Object: &node},
-			})
+			table.Rows = append(
+				table.Rows,
+				newTableRow("Node", node.Name, string(address.Type), address.Address, &node),
+			)
 		}
 	}
+	return nil
+}
 
-	return table
+func newTableRow(kind, name, addressType, address string, object runtime.Object) metaV1.TableRow {
+	return metaV1.TableRow{
+		Cells:  []interface{}{kind, name, addressType, address},
+		Object: runtime.RawExtension{Object: object},
+	}
 }
