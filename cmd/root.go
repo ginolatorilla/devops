@@ -66,7 +66,7 @@ func Execute() {
 		command.AddCommand(
 			newVersionCmd(Version, CommitHash),
 			newTemplateCmd(),
-			newCorsTestCmd(),
+			newCorsCheck(),
 		)
 	}
 
@@ -83,8 +83,30 @@ func newRootCmd(appName string) *cobra.Command {
 		func() { setUpLogger(verbosity) },
 	)
 	cmd := &cobra.Command{
-		Use:   appName,
-		Short: "Helper tool for DevOps",
+		Use: appName,
+		Long: `devops is a collection of different tools for DevOps-related tasks.
+
+This program contains the following kubectl plugins:
+- kubectl-list_addresses
+- kubectl-list_certs
+- kubectl-list_finalizers
+- kubectl-list_unhealthy_pods
+- kubectl-lookup_address
+- kubectl-trigger_cronjob
+
+To use a plugin copy or symlink this binary to the plugin name to a directory that's in your PATH
+environment variable. For example:
+
+	cp devops ~/.local/bin/kubectl-list_addresses
+	ln -s devops ~/.local/bin/kubectl-list_certs
+
+Then you can use the plugin:
+
+	kubectl list-addresses --help
+	kubectl list-certs --help
+
+This project is maintained at https://github.com/ginolatorilla/devops.
+		`,
 	}
 	cmd.PersistentFlags().CountVarP(
 		&verbosity,
