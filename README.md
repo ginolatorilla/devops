@@ -17,7 +17,7 @@ make install
 
 ## Scripts
 
-See `scripts` to learn more.
+These are standalone Bash scripts; see [`scripts`](./scripts/) to learn more.
 
 ## Kubectl plugins
 
