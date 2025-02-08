@@ -2,20 +2,15 @@ package kubectl_list_certs
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/ginolatorilla/devops/pkg/kube"
-	"github.com/spf13/cobra"
+	kubetesting "github.com/ginolatorilla/devops/pkg/kube/testing"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 )
 
 func TestNewCommand(t *testing.T) {
@@ -25,7 +20,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -35,7 +30,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 		setKubeConfigEnv(t, "testdata/ok/kubeConfig.yaml")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		assert.NoError(cmd.Execute())
 	})
 
@@ -44,17 +39,15 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "default", "test")
 		setKubeConfigEnv(t, "testdata/missing-namespace/kubeConfig.yaml")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		assert.NoError(cmd.Execute())
 	})
 
 	t.Run("ErrorIfUnableToListSecrets", func(t *testing.T) {
 		client := fake.NewClientset()
-		client.PrependReactor("list", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, &coreV1.SecretList{}, fmt.Errorf("canned error from test")
-		})
+		kubetesting.LoadCannedError(t, client, "list", "secrets")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		assert.Error(cmd.Execute())
 	})
 
@@ -62,7 +55,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		setKubeConfigEnv(t, "testdata/invalid/kubeConfig.yaml")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		assert.Error(cmd.Execute())
 	})
 
@@ -70,14 +63,8 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "default", "test")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		assert.NoError(cmd.Execute())
-	})
-}
-
-func testable(client *fake.Clientset) *cobra.Command {
-	return NewCommand(func(configFlags *kube.ConfigFlags) kubernetes.Interface {
-		return client
 	})
 }
 

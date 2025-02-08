@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ginolatorilla/devops/pkg/kube"
-	"github.com/spf13/cobra"
+	kubetesting "github.com/ginolatorilla/devops/pkg/kube/testing"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +22,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadResources(t, client, "test")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -33,7 +32,7 @@ func TestNewCommand(t *testing.T) {
 		loadCannedError(t, client, "list", "pods")
 		loadResources(t, client, "test")
 
-		cmd := testable(client)
+		cmd := kubetesting.Testable(client, NewCommand)
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.Error(cmd.Execute())
 	})
@@ -103,11 +102,5 @@ func loadCannedError(t *testing.T, client *fake.Clientset, verb, resource string
 
 	client.PrependReactor(verb, resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("canned error from test")
-	})
-}
-
-func testable(client *fake.Clientset) *cobra.Command {
-	return NewCommand(func(configFlags *kube.ConfigFlags) kubernetes.Interface {
-		return client
 	})
 }
