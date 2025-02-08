@@ -1,7 +1,6 @@
 package kubectl_lookup_address
 
 import (
-	"fmt"
 	"log/slog"
 	"slices"
 
@@ -18,9 +17,11 @@ import (
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 	return kube.
 		NewTabularRunner(apiFactory, lookupAddress).
-		ToCobraCommand(
+		ToCobraCommandWithArgs(
 			"kubectl-lookup_address",
 			"Finds Kubernetes resources by IP address",
+			cobra.ExactArgs(1),
+			[]string{"ip-address"},
 		)
 }
 
@@ -30,7 +31,7 @@ func lookupAddress(a kube.HandlerArgs) (metaV1.Table, error) {
 
 	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
-		panic(fmt.Errorf("failed to list services: %w", err))
+		slog.Warn("failed to list services", "error", err)
 	}
 
 	var objects []runtime.Object
