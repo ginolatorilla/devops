@@ -28,37 +28,46 @@ func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 
 func listUnhealthyPods(a kube.HandlerArgs) metaV1.Table {
 	client := a.KubeApi.CoreV1()
+	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
+	if err != nil {
+		slog.Warn("failed to list pods", "error", err)
+	}
+	unhealthyPods := filterUnhealthyPods(pods.Items)
+	return podsToTable(unhealthyPods)
+}
 
-	var pods []coreV1.Pod
-	allPods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
-	for _, pod := range allPods.Items {
+func filterUnhealthyPods(pods []coreV1.Pod) []coreV1.Pod {
+	var filtered []coreV1.Pod
+	for _, pod := range pods {
 		if pod.Status.Phase == coreV1.PodFailed {
 			for _, cs := range pod.Status.ContainerStatuses {
 				if cs.State.Terminated != nil {
 					pod.Status.Reason = cs.State.Terminated.Reason
 				}
 			}
-			pods = append(pods, pod)
+			filtered = append(filtered, pod)
 			continue
 		}
 		if pod.Status.Phase == coreV1.PodPending {
-			if slices.ContainsFunc(pod.Status.ContainerStatuses, func(cs coreV1.ContainerStatus) bool {
-				if cs.State.Waiting != nil {
-					pod.Status.Reason = cs.State.Waiting.Reason
-					return cs.State.Waiting.Reason != "ContainerCreating" && cs.State.Waiting.Reason != "PodInitializing"
-				}
-				return false
-			}) {
-				pods = append(pods, pod)
+			if slices.ContainsFunc(
+				pod.Status.ContainerStatuses,
+				func(cs coreV1.ContainerStatus) bool {
+					if cs.State.Waiting != nil {
+						pod.Status.Reason = cs.State.Waiting.Reason
+						return cs.State.Waiting.Reason != "ContainerCreating" && cs.State.Waiting.Reason != "PodInitializing"
+					}
+					return false
+				},
+			) {
+				filtered = append(filtered, pod)
 				continue
 			}
 		}
 	}
+	return filtered
+}
 
-	if err != nil {
-		slog.Warn("failed to list pods", "error", err)
-	}
-
+func podsToTable(pods []coreV1.Pod) metaV1.Table {
 	table := metaV1.Table{
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Name", Type: "string", Format: "name"},
