@@ -59,10 +59,6 @@ func listUnhealthyPods(a kube.HandlerArgs) metaV1.Table {
 		slog.Warn("failed to list pods", "error", err)
 	}
 
-	if len(pods) == 0 {
-		return metaV1.Table{}
-	}
-
 	table := metaV1.Table{
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Name", Type: "string", Format: "name"},
@@ -72,10 +68,6 @@ func listUnhealthyPods(a kube.HandlerArgs) metaV1.Table {
 		Rows: make([]metaV1.TableRow, len(pods)),
 	}
 	for i, pod := range pods {
-		if err != nil {
-			slog.Warn("cannot get group/version/kind of resource", "object", pod)
-			continue
-		}
 		table.Rows[i] = metaV1.TableRow{
 			Cells: []interface{}{
 				pod.Name,
