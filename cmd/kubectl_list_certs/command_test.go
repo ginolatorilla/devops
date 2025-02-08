@@ -61,9 +61,10 @@ func TestNewCommand(t *testing.T) {
 
 	t.Run("SkipIfCertificateIsInvalid", func(t *testing.T) {
 		client := fake.NewClientset()
-		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "default", "test")
+		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "test", "test")
 
 		cmd := kubetesting.Testable(client, NewCommand)
+		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
 }
@@ -93,6 +94,7 @@ func loadTLSCertsFromPath(t *testing.T, client *fake.Clientset, certsDir, namesp
 				coreV1.TLSPrivateKeyKey:        tlsKey,
 				coreV1.ServiceAccountRootCAKey: caCrt,
 			},
+			Type: coreV1.SecretTypeTLS,
 		},
 		metaV1.CreateOptions{},
 	)
