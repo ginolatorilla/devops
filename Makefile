@@ -1,5 +1,5 @@
 APP=devops
-VERSION=0.1.0
+VERSION=1.0.0
 GITHUB_OWNER=ginolatorilla
 GITHUB_DOMAIN=github.com
 
