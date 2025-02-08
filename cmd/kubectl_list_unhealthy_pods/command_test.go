@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	kubetesting "github.com/ginolatorilla/devops/pkg/kube/testing"
+	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"

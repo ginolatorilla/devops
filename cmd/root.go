@@ -32,7 +32,7 @@ import (
 	"github.com/ginolatorilla/devops/cmd/kubectl_list_unhealthy_pods"
 	"github.com/ginolatorilla/devops/cmd/kubectl_lookup_address"
 	"github.com/ginolatorilla/devops/cmd/kubectl_trigger_cronjob"
-	"github.com/ginolatorilla/devops/pkg/kube"
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -50,17 +50,17 @@ func Execute() {
 	var command *cobra.Command
 	switch plugin {
 	case "kubectl-list_certs":
-		command = kubectl_list_certs.NewCommand(kube.DefaultApiFactory)
+		command = kubectl_list_certs.NewCommand(kubectlplugin.DefaultApiFactory)
 	case "kubectl-lookup_address":
-		command = kubectl_lookup_address.NewCommand(kube.DefaultApiFactory)
+		command = kubectl_lookup_address.NewCommand(kubectlplugin.DefaultApiFactory)
 	case "kubectl-list_unhealthy_pods":
-		command = kubectl_list_unhealthy_pods.NewCommand(kube.DefaultApiFactory)
+		command = kubectl_list_unhealthy_pods.NewCommand(kubectlplugin.DefaultApiFactory)
 	case "kubectl-trigger_cronjob":
-		command = kubectl_trigger_cronjob.NewCommand(kube.DefaultApiFactory)
+		command = kubectl_trigger_cronjob.NewCommand(kubectlplugin.DefaultApiFactory)
 	case "kubectl-list_addresses":
-		command = kubectl_list_addresses.NewCommand(kube.DefaultApiFactory)
+		command = kubectl_list_addresses.NewCommand(kubectlplugin.DefaultApiFactory)
 	case "kubectl-list_finalizers":
-		command = kubectl_list_finalizers.NewCommand(kube.DefaultDynamicApiFactory)
+		command = kubectl_list_finalizers.NewCommand(kubectlplugin.DefaultDynamicApiFactory)
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(

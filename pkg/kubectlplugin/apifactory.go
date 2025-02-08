@@ -1,4 +1,4 @@
-package kube
+package kubectlplugin
 
 import (
 	"k8s.io/client-go/discovery"

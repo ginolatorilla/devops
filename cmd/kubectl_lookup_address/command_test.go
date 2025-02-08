@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	kubetesting "github.com/ginolatorilla/devops/pkg/kube/testing"
+	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

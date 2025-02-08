@@ -1,4 +1,4 @@
-package kube
+package kubectlplugin
 
 import (
 	"github.com/spf13/pflag"

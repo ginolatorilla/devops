@@ -18,3 +18,16 @@ make install
 ## Scripts
 
 See `scripts` to learn more.
+
+## Kubectl plugins
+
+This tool installs the following `kubectl` plugins:
+
+| Plugin                | Description                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `list-addresses`      | Lists all IP addresses in the cluster                                                                 |
+| `list-certs`          | Lists all certificates in the cluster and shows when they will be effective and when they will expire |
+| `list-finalizers`     | Lists all Kubernetes resources that have finalizers                                                   |
+| `list-unhealthy-pods` | Finds Kubernetes pods that are in a failed or unknown state                                           |
+| `lookup-address`      | Finds Kubernetes resources by IP address                                                              |
+| `trigger-cronjob`     | Launches a new job from an existing cronjob                                                           |

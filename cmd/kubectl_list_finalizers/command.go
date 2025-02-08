@@ -1,3 +1,22 @@
+// Copyright © 2025 Gino Latorilla
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
 package kubectl_list_finalizers
 
 import (
@@ -9,7 +28,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ginolatorilla/devops/pkg/kube"
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/itchyny/gojq"
 	"github.com/spf13/cobra"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,8 +38,8 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
-func NewCommand(apiFactory kube.DynamicApiFactory) *cobra.Command {
-	return kube.
+func NewCommand(apiFactory kubectlplugin.DynamicApiFactory) *cobra.Command {
+	return kubectlplugin.
 		NewTabularRunnerWithDiscoveryApi(apiFactory, listResourceUsers).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
@@ -28,7 +47,7 @@ func NewCommand(apiFactory kube.DynamicApiFactory) *cobra.Command {
 		)
 }
 
-func listResourceUsers(a kube.HandlerArgs) (metaV1.Table, error) {
+func listResourceUsers(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
 	gvrs, err := getAllGroupVersionResources(a)
 	if err != nil {
 		return metaV1.Table{}, fmt.Errorf("failed to get all group version resources: %w", err)
@@ -65,7 +84,7 @@ func listResourceUsers(a kube.HandlerArgs) (metaV1.Table, error) {
 	return table, nil
 }
 
-func getAllGroupVersionResources(a kube.HandlerArgs) ([]schema.GroupVersionResource, error) {
+func getAllGroupVersionResources(a kubectlplugin.HandlerArgs) ([]schema.GroupVersionResource, error) {
 	_, resources, err := a.DiscoveryApi.ServerGroupsAndResources()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get server resources: %w", err)

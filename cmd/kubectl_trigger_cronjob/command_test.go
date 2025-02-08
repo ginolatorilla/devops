@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	kubetesting "github.com/ginolatorilla/devops/pkg/kube/testing"
+	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
 	"github.com/stretchr/testify/assert"
 	batchV1 "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"

@@ -1,4 +1,4 @@
-package kube
+package kubectlplugin
 
 import (
 	"fmt"

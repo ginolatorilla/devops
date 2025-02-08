@@ -1,9 +1,28 @@
+// Copyright © 2025 Gino Latorilla
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
 package kubectl_list_addresses
 
 import (
 	"log/slog"
 
-	"github.com/ginolatorilla/devops/pkg/kube"
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 
 	coreV1 "k8s.io/api/core/v1"
@@ -12,8 +31,8 @@ import (
 	gocoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
-	return kube.
+func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
+	return kubectlplugin.
 		NewTabularRunner(apiFactory, listAddresses).
 		ToCobraCommand(
 			"kubectl-list_addresses",
@@ -21,7 +40,7 @@ func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
 		)
 }
 
-func listAddresses(a kube.HandlerArgs) (metaV1.Table, error) {
+func listAddresses(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
 	client := a.KubeApi.CoreV1()
 
 	table := metaV1.Table{
@@ -48,7 +67,7 @@ func listAddresses(a kube.HandlerArgs) (metaV1.Table, error) {
 	return table, nil
 }
 
-func getServiceAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
+func getServiceAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
 	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
@@ -82,7 +101,7 @@ func getServiceAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, ta
 	return nil
 }
 
-func getPodAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
+func getPodAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
@@ -98,7 +117,7 @@ func getPodAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table 
 	return nil
 }
 
-func getNodeAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
+func getNodeAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
 	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err

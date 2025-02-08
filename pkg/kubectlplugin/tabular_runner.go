@@ -1,4 +1,4 @@
-package kube
+package kubectlplugin
 
 import (
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
