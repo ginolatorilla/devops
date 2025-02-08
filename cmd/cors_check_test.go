@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCorsTest(t *testing.T) {
+func TestCorsCheck(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With")
@@ -16,7 +16,7 @@ func TestCorsTest(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
-	cmd := newCorsTestCmd()
+	cmd := newCorsCheck()
 	cmd.SetArgs([]string{"--target-url", server.URL})
 
 	err := cmd.Execute()
@@ -24,28 +24,24 @@ func TestCorsTest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCorsTest_PanicIfResponseCodeIsNon2XX(t *testing.T) {
+func TestCorsCheck_ErrorIfResponseCodeIsNon2XX(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
-	cmd := newCorsTestCmd()
+	cmd := newCorsCheck()
 	cmd.SetArgs([]string{"--target-url", server.URL})
 
-	assert.Panics(t, func() {
-		cmd.Execute()
-	})
+	assert.Error(t, cmd.Execute())
 }
 
-func TestCorsTest_PanicIfRequiredHeaderIsMissing(t *testing.T) {
+func TestCorsTest_ErrorIfRequiredHeaderIsMissing(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
-	cmd := newCorsTestCmd()
+	cmd := newCorsCheck()
 	cmd.SetArgs([]string{"--target-url", server.URL})
 
-	assert.Panics(t, func() {
-		cmd.Execute()
-	})
+	assert.Error(t, cmd.Execute())
 }

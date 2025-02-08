@@ -46,22 +46,29 @@ The following functions are available in the template:
 - Sprig functions (see http://masterminds.github.io/sprig/)
 - x509: Parse a PEM-encoded X.509 certificate and return a map of its fields (see https://pkg.go.dev/crypto/x509#Certificate)
 - relativeTime: Convert a time.Time to a human-readable relative time`,
-		Run: func(cmd *cobra.Command, args []string) {
-			render(cmd.InOrStdin(), cmd.OutOrStdout())
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return render(cmd.InOrStdin(), cmd.OutOrStdout())
 		},
 	}
 	return cmd
 }
 
-func render(stdin io.Reader, stdout io.Writer) {
-	_check(_must(template.
+func render(stdin io.Reader, stdout io.Writer) error {
+	tpl, err := template.
 		New("stdin").
 		Funcs(sprig.FuncMap()).
 		Funcs(funcMap).
 		Parse(
 			string(_must(io.ReadAll(stdin))),
-		)).
-		Execute(stdout, nil))
+		)
+	if err != nil {
+		return err
+	}
+	if err := tpl.Execute(stdout, nil); err != nil {
+		return err
+	}
+	return nil
 }
 
 func parseX509ToMap(input string) map[string]any {

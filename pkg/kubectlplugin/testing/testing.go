@@ -1,6 +1,4 @@
-// package exec defines an interface for the os/exec package and mocks for testing.
-//
-// The mock types in this package are based on github.com/stretchr/testify/mock.
+// package testing contains helpers for testing kubectl plugins built with kubectlplugin.
 //
 // # Copyright © 2025 Gino Latorilla
 //
@@ -21,26 +19,30 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-package exec
+package testing
 
 import (
-	"context"
-	"os/exec"
+	"fmt"
+	gotesting "testing"
+
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
-// Exec is an interface for the exec.Cmd type from the os/exec package.
-type Exec interface {
-	Run() error              // Run starts the command. It should return an exec.ExitError if the underlying command fails.
-	Output() ([]byte, error) // Output is similar to Run, but it returns the output of the command.
+func LoadCannedError(t *gotesting.T, client *fake.Clientset, verb, resource string) {
+	t.Helper()
+
+	client.PrependReactor(verb, resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("canned error from test")
+	})
 }
 
-// Executor is the function signature of exec.Command.
-type Executor func(ctx context.Context, cmd string, args ...string) Exec
-
-func Command(ctx context.Context, cmd string, args ...string) Exec {
-	return exec.Command(cmd, args...)
-}
-
-func CommandContext(ctx context.Context, cmd string, args ...string) Exec {
-	return exec.CommandContext(ctx, cmd, args...)
+func Testable(client *fake.Clientset, commandFactory func(kubectlplugin.ApiFactory) *cobra.Command) *cobra.Command {
+	return commandFactory(func(cf *kubectlplugin.ConfigFlags) kubernetes.Interface {
+		return client
+	})
 }

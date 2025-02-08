@@ -23,7 +23,4 @@
 # THE SOFTWARE.
 set -euo pipefail
 
-devops check-requirements -q
-echo '{{dateInZone "2006-01-02-15-04-05z" (now) "utc" }}' | devops template
-# Uncomment if you want to use the shell script version.
-# echo "$(env TZ=UTC date -Iseconds | sed -e 's/+.*//g' -e 's/[:T]/-/g')z"
+echo "$(env TZ=UTC date -Iseconds | sed -e 's/+.*//g' -e 's/[:T]/-/g')z"
