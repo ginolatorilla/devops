@@ -28,19 +28,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newCorsTestCmd() *cobra.Command {
+func newCorsCheck() *cobra.Command {
 	var (
 		targetUrl string
 		originUrl string
 	)
 	cmd := &cobra.Command{
-		Use:   "cors-test --target-url URL [flags]",
+		Use:   "cors-check --target-url URL [flags]",
 		Short: "Test CORS headers",
-		Long: `cors-test sends a preflight request to the target URL and checks if the response has the required headers.
+		Long: `cors-check sends a preflight request to the target URL and checks if the response has the required headers.
 
 See also https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request`,
-		Run: func(cmd *cobra.Command, args []string) {
-			corsTest(targetUrl, originUrl, cmd.OutOrStdout())
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return corsCheck(targetUrl, originUrl, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().StringVar(&targetUrl, "target-url" /* name */, "" /* default */, "The target URL to test (required)" /* usage */)
@@ -49,19 +50,20 @@ See also https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request`,
 	return cmd
 }
 
-func corsTest(targetUrl, originUrl string, stdout io.Writer) {
+func corsCheck(targetUrl, originUrl string, stdout io.Writer) error {
 	preflight := sendPreflightRequest(targetUrl, originUrl)
 	if preflight.StatusCode < 200 || preflight.StatusCode >= 300 {
-		panic(fmt.Errorf("unexpected status code: %d", preflight.StatusCode))
+		return fmt.Errorf("unexpected status code: %d", preflight.StatusCode)
 	}
 	allowedMethods, ok := preflight.Header["Access-Control-Allow-Methods"]
 	if !ok {
-		panic(fmt.Errorf("Access-Control-Allow-Methods header not found"))
+		return fmt.Errorf("Access-Control-Allow-Methods header not found")
 	}
 	fmt.Fprintf(stdout, "✅ %s supports CORS\n", targetUrl)
 	fmt.Fprintf(stdout, "Allowed methods: %s\n", strings.Join(allowedMethods, "; "))
 	fmt.Fprintf(stdout, "Allowed headers: %s\n", strings.Join(preflight.Header["Access-Control-Allow-Headers"], "; "))
 	fmt.Fprintf(stdout, "Allowed origins: %s\n", strings.Join(preflight.Header["Access-Control-Allow-Origin"], "; "))
+	return nil
 }
 
 func sendPreflightRequest(targetUrl, originUrl string) *http.Response {
