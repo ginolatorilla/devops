@@ -7,8 +7,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Runner struct {
@@ -29,40 +27,48 @@ type HandlerArgs struct {
 	ConfigFlags  *ConfigFlags
 }
 
-type Handler func(args HandlerArgs)
+type Handler func(args HandlerArgs) error
 
-func NewRunner(configFlags *ConfigFlags, apiFactory ApiFactory, handler Handler) *Runner {
+func NewRunner(apiFactory ApiFactory, handler Handler) *Runner {
 	return &Runner{
-		configFlags: configFlags,
+		configFlags: NewConfigFlags(),
 		apiFactory:  apiFactory,
 		handler:     handler,
 	}
 }
 
-type TabularHandler func(args HandlerArgs) metaV1.Table
-
-func NewTabularRunner(configFlags *ConfigFlags, apiFactory ApiFactory, handler TabularHandler) *Runner {
-	return &Runner{
-		configFlags:    configFlags,
-		apiFactory:     apiFactory,
-		tabularHandler: handler,
+func (r *Runner) ToCobraCommand(use, short string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          use,
+		Short:        short,
+		SilenceUsage: true,
+		RunE:         r.toRunE(),
 	}
+
+	r.configFlags.AddFlags(cmd.Flags())
+	return cmd
 }
 
-func NewTabularRunnerWithDiscoveryApi(configFlags *ConfigFlags, apiFactory DynamicApiFactory, handler TabularHandler) *Runner {
-	return &Runner{
-		configFlags:       configFlags,
-		dynamicApiFactory: apiFactory,
-		tabularHandler:    handler,
+func (r *Runner) ToCobraCommandWithArgs(use, short string, args cobra.PositionalArgs, validArgs []string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          use,
+		Args:         args,
+		ValidArgs:    validArgs,
+		Short:        short,
+		SilenceUsage: true,
+		RunE:         r.toRunE(),
 	}
+
+	r.configFlags.AddFlags(cmd.Flags())
+	return cmd
 }
 
-func (r *Runner) ToRun() func(cmd *cobra.Command, args []string) {
-	return func(cmd *cobra.Command, args []string) {
+func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
 		kubeConfig := r.configFlags.ToRawKubeConfigLoader()
 		namespace, err := r.configFlags.GetEffectiveNamespace(kubeConfig)
 		if err != nil {
-			panic(fmt.Errorf("failed to get effective namespace: %w", err))
+			return fmt.Errorf("failed to get effective namespace: %w", err)
 		}
 
 		var kubeApi kubernetes.Interface
@@ -88,14 +94,19 @@ func (r *Runner) ToRun() func(cmd *cobra.Command, args []string) {
 
 		if r.handler != nil {
 			r.handler(handlerArgs)
-			return
+			return nil
 		}
 
 		if r.tabularHandler != nil {
-			table := r.tabularHandler(handlerArgs)
+			table, err := r.tabularHandler(handlerArgs)
+			if err != nil {
+				return err
+			}
+
 			if err := r.configFlags.GetTablePrinter().PrintObj(&table, cmd.OutOrStdout()); err != nil {
-				panic(fmt.Errorf("failed to print table: %w", err))
+				return fmt.Errorf("failed to print table: %w", err)
 			}
 		}
+		return nil
 	}
 }

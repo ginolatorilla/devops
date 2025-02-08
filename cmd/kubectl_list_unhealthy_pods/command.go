@@ -1,7 +1,7 @@
 package kubectl_list_unhealthy_pods
 
 import (
-	"log/slog"
+	"fmt"
 	"slices"
 
 	"github.com/ginolatorilla/devops/pkg/kube"
@@ -13,27 +13,22 @@ import (
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
-	configFlags := kube.NewConfigFlags()
-	runner := kube.NewTabularRunner(configFlags, apiFactory, listUnhealthyPods)
-
-	command := &cobra.Command{
-		Use:   "kubectl-list_unhealthy_pods",
-		Short: "Finds Kubernetes pods that are in a failed or unknown state",
-		Run:   runner.ToRun(),
-	}
-
-	configFlags.AddFlags(command.Flags())
-	return command
+	return kube.
+		NewTabularRunner(apiFactory, listUnhealthyPods).
+		ToCobraCommand(
+			"kubectl-list_unhealthy_pods",
+			"Finds Kubernetes pods that are in a failed or unknown state",
+		)
 }
 
-func listUnhealthyPods(a kube.HandlerArgs) metaV1.Table {
+func listUnhealthyPods(a kube.HandlerArgs) (metaV1.Table, error) {
 	client := a.KubeApi.CoreV1()
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
-		slog.Warn("failed to list pods", "error", err)
+		return metaV1.Table{}, fmt.Errorf("failed to list pods: %w", err)
 	}
 	unhealthyPods := filterUnhealthyPods(pods.Items)
-	return podsToTable(unhealthyPods)
+	return podsToTable(unhealthyPods), nil
 }
 
 func filterUnhealthyPods(pods []coreV1.Pod) []coreV1.Pod {

@@ -18,20 +18,15 @@ import (
 )
 
 func NewCommand(apiFactory kube.DynamicApiFactory) *cobra.Command {
-	configFlags := kube.NewConfigFlags()
-	runner := kube.NewTabularRunnerWithDiscoveryApi(configFlags, apiFactory, listResourceUsers)
-
-	command := &cobra.Command{
-		Use:   "kubectl-list_finalizers",
-		Short: "Lists all Kubernetes resources that have finalizers",
-		Run:   runner.ToRun(),
-	}
-
-	configFlags.AddFlags(command.Flags())
-	return command
+	return kube.
+		NewTabularRunnerWithDiscoveryApi(apiFactory, listResourceUsers).
+		ToCobraCommand(
+			"kubectl-list_finalizers",
+			"Lists all Kubernetes resources that have finalizers",
+		)
 }
 
-func listResourceUsers(a kube.HandlerArgs) metaV1.Table {
+func listResourceUsers(a kube.HandlerArgs) (metaV1.Table, error) {
 	_, resources, err := a.DiscoveryApi.ServerGroupsAndResources()
 	for _, resource := range resources {
 		var newApiResources []metaV1.APIResource
@@ -47,16 +42,16 @@ func listResourceUsers(a kube.HandlerArgs) metaV1.Table {
 		resource.APIResources = newApiResources
 	}
 	if err != nil {
-		panic(fmt.Errorf("failed to get server resources: %w", err))
+		return metaV1.Table{}, fmt.Errorf("failed to get server resources: %w", err)
 	}
 	gvrs, err := discovery.GroupVersionResources(resources)
 	if err != nil {
-		panic(fmt.Errorf("failed to convert server API resource lists to group version resources: %w", err))
+		return metaV1.Table{}, fmt.Errorf("failed to convert server API resource lists to group version resources: %w", err)
 	}
 
 	jq, err := gojq.Parse(".items[] | {kind: .kind, namespace: .metadata.namespace, name: .metadata.name, finalizers: .metadata.finalizers}")
 	if err != nil {
-		panic(fmt.Errorf("failed to parse JQ query: %w", err))
+		return metaV1.Table{}, fmt.Errorf("failed to parse JQ query: %w", err)
 	}
 
 	table := metaV1.Table{
@@ -120,5 +115,5 @@ func listResourceUsers(a kube.HandlerArgs) metaV1.Table {
 			}
 		}
 	}
-	return table
+	return table, nil
 }

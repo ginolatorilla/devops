@@ -48,22 +48,22 @@ func TestNewCommand(t *testing.T) {
 		assert.NoError(cmd.Execute())
 	})
 
-	t.Run("PanicIfUnableToListSecrets", func(t *testing.T) {
+	t.Run("ErrorIfUnableToListSecrets", func(t *testing.T) {
 		client := fake.NewClientset()
 		client.PrependReactor("list", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, &coreV1.SecretList{}, fmt.Errorf("canned error from test")
 		})
 
 		cmd := testable(client)
-		assert.Panics(func() { cmd.Execute() })
+		assert.Error(cmd.Execute())
 	})
 
-	t.Run("PanicIfEmptyKubeConfig", func(t *testing.T) {
+	t.Run("ErrorIfEmptyKubeConfig", func(t *testing.T) {
 		client := fake.NewClientset()
 		setKubeConfigEnv(t, "testdata/invalid/kubeConfig.yaml")
 
 		cmd := testable(client)
-		assert.Panics(func() { cmd.Execute() })
+		assert.Error(cmd.Execute())
 	})
 
 	t.Run("SkipIfCertificateIsInvalid", func(t *testing.T) {

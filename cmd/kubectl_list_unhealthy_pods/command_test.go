@@ -28,14 +28,14 @@ func TestNewCommand(t *testing.T) {
 		assert.NoError(cmd.Execute())
 	})
 
-	t.Run("SkipIfPodsUnreadable", func(t *testing.T) {
+	t.Run("ErrorIfPodsUnreadable", func(t *testing.T) {
 		client := fake.NewClientset()
 		loadCannedError(t, client, "list", "pods")
 		loadResources(t, client, "test")
 
 		cmd := testable(client)
 		cmd.SetArgs([]string{"-n", "test"})
-		assert.NoError(cmd.Execute())
+		assert.Error(cmd.Execute())
 	})
 }
 

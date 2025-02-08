@@ -16,22 +16,15 @@ import (
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
-	configFlags := kube.NewConfigFlags()
-	runner := kube.NewTabularRunner(configFlags, apiFactory, lookupAddress)
-
-	command := &cobra.Command{
-		Use:       "kubectl-lookup_address IP_ADDRESS",
-		Args:      cobra.ExactArgs(1),
-		ValidArgs: []string{"IP_ADDRESS"},
-		Short:     "Finds Kubernetes resources by IP address",
-		Run:       runner.ToRun(),
-	}
-
-	configFlags.AddFlags(command.Flags())
-	return command
+	return kube.
+		NewTabularRunner(apiFactory, lookupAddress).
+		ToCobraCommand(
+			"kubectl-lookup_address",
+			"Finds Kubernetes resources by IP address",
+		)
 }
 
-func lookupAddress(a kube.HandlerArgs) metaV1.Table {
+func lookupAddress(a kube.HandlerArgs) (metaV1.Table, error) {
 	ipAddress := a.Args[0]
 	client := a.KubeApi.CoreV1()
 
@@ -79,7 +72,7 @@ func lookupAddress(a kube.HandlerArgs) metaV1.Table {
 
 	if len(objects) == 0 {
 		slog.Warn("not found", "address", ipAddress)
-		return metaV1.Table{}
+		return metaV1.Table{}, nil
 	}
 
 	table := metaV1.Table{
@@ -103,5 +96,5 @@ func lookupAddress(a kube.HandlerArgs) metaV1.Table {
 			Object: runtime.RawExtension{Object: object},
 		}
 	}
-	return table
+	return table, nil
 }

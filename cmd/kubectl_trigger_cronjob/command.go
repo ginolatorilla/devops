@@ -13,28 +13,21 @@ import (
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
-	configFlags := kube.NewConfigFlags()
-	runner := kube.NewTabularRunner(configFlags, apiFactory, triggerCronJob)
-
-	command := &cobra.Command{
-		Use:       "kubectl-trigger_cronjob CRONJOB",
-		Args:      cobra.ExactArgs(1),
-		ValidArgs: []string{"CRONJOB"},
-		Short:     "Launches a new job from an existing cronjob",
-		Run:       runner.ToRun(),
-	}
-
-	configFlags.AddFlags(command.Flags())
-	return command
+	return kube.
+		NewTabularRunner(apiFactory, triggerCronJob).
+		ToCobraCommand(
+			"kubectl-trigger_cronjob",
+			"Launches a new job from an existing cronjob",
+		)
 }
 
-func triggerCronJob(a kube.HandlerArgs) metaV1.Table {
+func triggerCronJob(a kube.HandlerArgs) (metaV1.Table, error) {
 	cronJobName := a.Args[0]
 	client := a.KubeApi.BatchV1()
 
 	cronJob, err := client.CronJobs(a.Namespace).Get(a.Cmd.Context(), cronJobName, metaV1.GetOptions{})
 	if err != nil {
-		panic(fmt.Errorf("failed to get cronjob: %w", err))
+		return metaV1.Table{}, fmt.Errorf("failed to get cronjob: %w", err)
 	}
 
 	job, err := client.Jobs(a.Namespace).Create(a.Cmd.Context(), &batchV1.Job{
@@ -44,7 +37,7 @@ func triggerCronJob(a kube.HandlerArgs) metaV1.Table {
 		Spec: cronJob.Spec.JobTemplate.Spec,
 	}, metaV1.CreateOptions{})
 	if err != nil {
-		panic(fmt.Errorf("failed to create job: %w", err))
+		return metaV1.Table{}, fmt.Errorf("failed to create job: %w", err)
 	}
 
 	gvk, err := apiutil.GVKForObject(job, scheme.Scheme)
@@ -65,5 +58,5 @@ func triggerCronJob(a kube.HandlerArgs) metaV1.Table {
 				},
 			},
 		},
-	}
+	}, nil
 }

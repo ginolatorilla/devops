@@ -13,20 +13,15 @@ import (
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
-	configFlags := kube.NewConfigFlags()
-	runner := kube.NewTabularRunner(configFlags, apiFactory, listAddresses)
-
-	command := &cobra.Command{
-		Use:   "kubectl-list_addresses",
-		Short: "Lists all IP addresses in the cluster",
-		Run:   runner.ToRun(),
-	}
-
-	configFlags.AddFlags(command.Flags())
-	return command
+	return kube.
+		NewTabularRunner(apiFactory, listAddresses).
+		ToCobraCommand(
+			"kubectl-list_addresses",
+			"Lists all IP addresses in the cluster",
+		)
 }
 
-func listAddresses(a kube.HandlerArgs) metaV1.Table {
+func listAddresses(a kube.HandlerArgs) (metaV1.Table, error) {
 	client := a.KubeApi.CoreV1()
 
 	table := metaV1.Table{
@@ -50,7 +45,7 @@ func listAddresses(a kube.HandlerArgs) metaV1.Table {
 		slog.Warn("failed to list nodes", "error", err)
 	}
 
-	return table
+	return table, nil
 }
 
 func getServiceAddresses(a kube.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {

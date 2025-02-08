@@ -8,25 +8,21 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/ginolatorilla/devops/pkg/kube"
 	"github.com/spf13/cobra"
+	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func NewCommand(apiFactory kube.ApiFactory) *cobra.Command {
-	configFlags := kube.NewConfigFlags()
-	runner := kube.NewTabularRunner(configFlags, apiFactory, listCerts)
-
-	command := &cobra.Command{
-		Use:   "kubectl_list_certs",
-		Short: "List certificates in the cluster",
-		Run:   runner.ToRun(),
-	}
-
-	configFlags.AddFlags(command.Flags())
-	return command
+	return kube.
+		NewTabularRunner(apiFactory, listCerts).
+		ToCobraCommand(
+			"kubectl-list_certs",
+			"Lists all certificates in the cluster",
+		)
 }
 
-func listCerts(a kube.HandlerArgs) metaV1.Table {
+func listCerts(a kube.HandlerArgs) (metaV1.Table, error) {
 	client := a.KubeApi.CoreV1()
 	secrets, err := client.
 		Secrets(a.Namespace).
@@ -34,9 +30,12 @@ func listCerts(a kube.HandlerArgs) metaV1.Table {
 			FieldSelector: "type=kubernetes.io/tls",
 		})
 	if err != nil {
-		panic(fmt.Errorf("failed to list secrets: %w", err))
+		return metaV1.Table{}, fmt.Errorf("failed to list secrets: %w", err)
 	}
+	return secretsToTable(secrets.Items), nil
+}
 
+func secretsToTable(secrets []coreV1.Secret) metaV1.Table {
 	table := metaV1.Table{
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Name", Type: "string", Format: "name"},
@@ -46,10 +45,9 @@ func listCerts(a kube.HandlerArgs) metaV1.Table {
 			{Name: "NotAfter", Type: "string", Format: "date-time"},
 			{Name: "Expires", Type: "string"},
 		},
-		Rows: make([]metaV1.TableRow, len(secrets.Items)),
+		Rows: make([]metaV1.TableRow, len(secrets)),
 	}
-
-	for i, secret := range secrets.Items {
+	for i, secret := range secrets {
 		tlsCertKey := "tls.crt"
 		cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 		if err != nil {
@@ -61,7 +59,6 @@ func listCerts(a kube.HandlerArgs) metaV1.Table {
 				"error", err)
 			continue
 		}
-
 		table.Rows[i] = metaV1.TableRow{
 			Cells: []interface{}{
 				secret.Name,
