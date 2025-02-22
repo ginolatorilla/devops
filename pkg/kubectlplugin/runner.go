@@ -29,28 +29,16 @@ type HandlerArgs struct {
 
 type Handler func(args HandlerArgs) (runtime.Object, error)
 
-func NewRunner(apiFactory ApiFactory, handler Handler) *Runner {
-	return &Runner{
-		configFlags: NewConfigFlagsWithResourcePrinters(),
-		apiFactory:  apiFactory,
-		handler:     handler,
-	}
-}
-
-func NewRunnerWithDiscoveryApi(apiFactory DynamicApiFactory, handler Handler) *Runner {
-	return &Runner{
-		configFlags:       NewConfigFlagsWithResourcePrinters(),
-		dynamicApiFactory: apiFactory,
-		handler:           handler,
-	}
-}
-
-func NewRunnerWithoutResourcePrinters(apiFactory ApiFactory, handler Handler) *Runner {
-	return &Runner{
+func NewRunner(apiFactory ApiFactory, handler Handler, opts ...RunnerOpts) *Runner {
+	r := &Runner{
 		configFlags: NewConfigFlags(),
 		apiFactory:  apiFactory,
 		handler:     handler,
 	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 func (r *Runner) ToCobraCommand(use, short string) *cobra.Command {

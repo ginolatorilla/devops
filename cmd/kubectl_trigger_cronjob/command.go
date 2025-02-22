@@ -31,7 +31,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, triggerCronJob).
+		NewRunner(apiFactory, triggerCronJob, kubectlplugin.WithResourcePrinters()).
 		ToCobraCommand(
 			"kubectl-trigger_cronjob",
 			"Launches a new job from an existing cronjob",

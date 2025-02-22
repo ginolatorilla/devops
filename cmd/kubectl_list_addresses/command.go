@@ -33,7 +33,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, listAddresses).
+		NewRunner(apiFactory, listAddresses, kubectlplugin.WithResourcePrinters()).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",

@@ -33,7 +33,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, listUnhealthyPods).
+		NewRunner(apiFactory, listUnhealthyPods, kubectlplugin.WithResourcePrinters()).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",

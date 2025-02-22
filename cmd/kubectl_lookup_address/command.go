@@ -34,7 +34,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, lookupAddress).
+		NewRunner(apiFactory, lookupAddress, kubectlplugin.WithResourcePrinters()).
 		ToCobraCommandWithArgs(
 			"kubectl-lookup_address",
 			"Finds Kubernetes resources by IP address",

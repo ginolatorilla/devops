@@ -34,7 +34,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, listCerts).
+		NewRunner(apiFactory, listCerts, kubectlplugin.WithResourcePrinters()).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",

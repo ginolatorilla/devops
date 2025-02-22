@@ -40,7 +40,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.DynamicApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewRunnerWithDiscoveryApi(apiFactory, listResourceUsers).
+		NewRunner(nil, listResourceUsers, kubectlplugin.WithDiscoveryApi(apiFactory)).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",
