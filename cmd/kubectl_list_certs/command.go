@@ -55,22 +55,14 @@ func listCerts(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 }
 
 func secretsToTable(secrets []coreV1.Secret) runtime.Object {
-	table := metaV1.Table{
-		TypeMeta: metaV1.TypeMeta{
-			APIVersion: "meta.k8s.io/v1",
-			Kind:       "Table",
-		},
-		ColumnDefinitions: []metaV1.TableColumnDefinition{
-			{Name: "Name", Type: "string", Format: "name"},
-			{Name: "Key", Type: "string"},
-			{Name: "NotBefore", Type: "string", Format: "date-time"},
-			{Name: "Effective", Type: "string"},
-			{Name: "NotAfter", Type: "string", Format: "date-time"},
-			{Name: "Expires", Type: "string"},
-		},
-		Rows: make([]metaV1.TableRow, len(secrets)),
-	}
-	for i, secret := range secrets {
+	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
+		kubectlplugin.Column{Name: "Key", Description: "The key of the certificate in the secret"},
+		kubectlplugin.Column{Name: "Not_Before", Description: "The date and time when the certificate will be effective"},
+		kubectlplugin.Column{Name: "Effective", Description: "How long until the certificate becomes effective"},
+		kubectlplugin.Column{Name: "Not_After", Description: "The date and time when the certificate will expire"},
+		kubectlplugin.Column{Name: "Expires", Description: "How long until the certificate expires"},
+	)
+	for _, secret := range secrets {
 		tlsCertKey := "tls.crt"
 		cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 		if err != nil {
@@ -82,17 +74,13 @@ func secretsToTable(secrets []coreV1.Secret) runtime.Object {
 				"error", err)
 			continue
 		}
-		table.Rows[i] = metaV1.TableRow{
-			Cells: []interface{}{
-				secret.Name,
-				tlsCertKey,
-				cert.Leaf.NotBefore,
-				humanize.Time(cert.Leaf.NotBefore),
-				cert.Leaf.NotAfter,
-				humanize.Time(cert.Leaf.NotAfter),
-			},
-			Object: runtime.RawExtension{Object: &secret},
-		}
+		tableBuilder.AddRow(&secret, map[string]interface{}{
+			"Key":        tlsCertKey,
+			"Not_Before": cert.Leaf.NotBefore,
+			"Effective":  humanize.Time(cert.Leaf.NotBefore),
+			"Not_After":  cert.Leaf.NotAfter,
+			"Expires":    humanize.Time(cert.Leaf.NotAfter),
+		})
 	}
-	return &table
+	return &tableBuilder.Table
 }

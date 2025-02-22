@@ -46,50 +46,55 @@ func lookupAddress(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	ipAddress := a.Args[0]
 	client := a.KubeApi.CoreV1()
 
-	table := metaV1.Table{
-		TypeMeta: metaV1.TypeMeta{
-			APIVersion: "meta.k8s.io/v1",
-			Kind:       "Table",
-		},
-		ColumnDefinitions: []metaV1.TableColumnDefinition{
-			{Name: "Kind", Type: "string"},
-			{Name: "Name", Type: "string", Format: "name"},
-		},
-		Rows: []metaV1.TableRow{},
-	}
+	tableBuilder := kubectlplugin.
+		NewTableBuilder().
+		AdditionalColumns(
+			kubectlplugin.ResourceKindColumn,
+			kubectlplugin.Column{Name: "Type", Description: "The type of address"},
+		)
 
-	if err := recordServicesWithMatchingAddress(a, client, ipAddress, &table); err != nil {
+	if err := recordServicesWithMatchingAddress(a, client, ipAddress, tableBuilder); err != nil {
 		slog.Warn("failed to list services", "error", err)
 	}
-	if err := recordPodsWithMatchingAddress(a, client, ipAddress, &table); err != nil {
+	if err := recordPodsWithMatchingAddress(a, client, ipAddress, tableBuilder); err != nil {
 		slog.Warn("failed to list pods", "error", err)
 	}
-	if err := recordNodesWithMatchingAddress(a, client, ipAddress, &table); err != nil {
+	if err := recordNodesWithMatchingAddress(a, client, ipAddress, tableBuilder); err != nil {
 		slog.Warn("failed to list nodes", "error", err)
 	}
-	return &table, nil
+	return &tableBuilder.Table, nil
 }
 
-func recordServicesWithMatchingAddress(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, ipAddress string, table *metaV1.Table) error {
+func recordServicesWithMatchingAddress(
+	a kubectlplugin.HandlerArgs,
+	client gocoreV1.CoreV1Interface,
+	ipAddress string,
+	tableBuilder *kubectlplugin.TableBuilder,
+) error {
 	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, service := range services.Items {
 		if slices.Contains(service.Spec.ClusterIPs, ipAddress) {
-			table.Rows = append(table.Rows, newTableRow("Service", service.Name, &service))
+			tableBuilder.AddRow(&service, map[string]any{"Type": "ClusterIP", "Kind": "Service"})
 		}
 		if slices.Contains(service.Spec.ExternalIPs, ipAddress) {
-			table.Rows = append(table.Rows, newTableRow("Service", service.Name, &service))
+			tableBuilder.AddRow(&service, map[string]any{"Type": "ExternalIP", "Kind": "Service"})
 		}
 		if service.Spec.LoadBalancerIP == ipAddress {
-			table.Rows = append(table.Rows, newTableRow("Service", service.Name, &service))
+			tableBuilder.AddRow(&service, map[string]any{"Type": "LoadBalancerIP", "Kind": "Service"})
 		}
 	}
 	return nil
 }
 
-func recordPodsWithMatchingAddress(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, ipAddress string, table *metaV1.Table) error {
+func recordPodsWithMatchingAddress(
+	a kubectlplugin.HandlerArgs,
+	client gocoreV1.CoreV1Interface,
+	ipAddress string,
+	tableBuilder *kubectlplugin.TableBuilder,
+) error {
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
@@ -98,30 +103,28 @@ func recordPodsWithMatchingAddress(a kubectlplugin.HandlerArgs, client gocoreV1.
 		if slices.ContainsFunc(pod.Status.PodIPs, func(p coreV1.PodIP) bool {
 			return p.IP == ipAddress
 		}) {
-			table.Rows = append(table.Rows, newTableRow("Pod", pod.Name, &pod))
+			tableBuilder.AddRow(&pod, map[string]any{"Type": "PodIP", "Kind": "Pod"})
 		}
 	}
 	return nil
 }
 
-func recordNodesWithMatchingAddress(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, ipAddress string, table *metaV1.Table) error {
+func recordNodesWithMatchingAddress(
+	a kubectlplugin.HandlerArgs,
+	client gocoreV1.CoreV1Interface,
+	ipAddress string,
+	tableBuilder *kubectlplugin.TableBuilder,
+) error {
 	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, node := range nodes.Items {
-		if slices.ContainsFunc(node.Status.Addresses, func(n coreV1.NodeAddress) bool {
-			return n.Address == ipAddress
-		}) {
-			table.Rows = append(table.Rows, newTableRow("Node", node.Name, &node))
+		for _, n := range node.Status.Addresses {
+			if n.Address == ipAddress {
+				tableBuilder.AddRow(&node, map[string]any{"Type": n.Type, "Kind": "Node"})
+			}
 		}
 	}
 	return nil
-}
-
-func newTableRow(kind, name string, object runtime.Object) metaV1.TableRow {
-	return metaV1.TableRow{
-		Cells:  []interface{}{kind, name},
-		Object: runtime.RawExtension{Object: object},
-	}
 }

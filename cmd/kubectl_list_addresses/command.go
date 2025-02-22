@@ -43,35 +43,32 @@ func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	client := a.KubeApi.CoreV1()
 
-	table := metaV1.Table{
-		TypeMeta: metaV1.TypeMeta{
-			APIVersion: "meta.k8s.io/v1",
-			Kind:       "Table",
-		},
-		ColumnDefinitions: []metaV1.TableColumnDefinition{
-			{Name: "Kind", Type: "string"},
-			{Name: "Name", Type: "string", Format: "name"},
-			{Name: "Type", Type: "string"},
-			{Name: "Address", Type: "string"},
-		},
-	}
+	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
+		kubectlplugin.ResourceKindColumn,
+		kubectlplugin.Column{Name: "Type", Description: "The type of address"},
+		kubectlplugin.Column{Name: "Address", Description: "The IP address"},
+	)
 
-	if err := getServiceAddresses(a, client, &table); err != nil {
+	if err := getServiceAddresses(a, client, tableBuilder); err != nil {
 		slog.Warn("failed to list services", "error", err)
 	}
 
-	if err := getPodAddresses(a, client, &table); err != nil {
+	if err := getPodAddresses(a, client, tableBuilder); err != nil {
 		slog.Warn("failed to list pods", "error", err)
 	}
 
-	if err := getNodeAddresses(a, client, &table); err != nil {
+	if err := getNodeAddresses(a, client, tableBuilder); err != nil {
 		slog.Warn("failed to list nodes", "error", err)
 	}
 
-	return &table, nil
+	return &tableBuilder.Table, nil
 }
 
-func getServiceAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
+func getServiceAddresses(
+	a kubectlplugin.HandlerArgs,
+	client gocoreV1.CoreV1Interface,
+	tableBuilder *kubectlplugin.TableBuilder,
+) error {
 	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
@@ -82,46 +79,58 @@ func getServiceAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Inte
 			if ip == "" || ip == "None" {
 				continue
 			}
-			table.Rows = append(
-				table.Rows,
-				newTableRow("Service", service.Name, "ClusterIP", ip, &service),
-			)
+			tableBuilder.AddRow(&service, map[string]any{
+				"Kind":    "Service",
+				"Type":    "ClusterIP",
+				"Address": ip,
+			})
 		}
 
 		for _, ip := range service.Spec.ExternalIPs {
-			table.Rows = append(
-				table.Rows,
-				newTableRow("Service", service.Name, "ExternalIP", ip, &service),
-			)
+			tableBuilder.AddRow(&service, map[string]any{
+				"Kind":    "Service",
+				"Type":    "ExternalIP",
+				"Address": ip,
+			})
 		}
 
 		if service.Spec.LoadBalancerIP != "" {
-			table.Rows = append(
-				table.Rows,
-				newTableRow("Service", service.Name, "LoadBalancerIP", service.Spec.LoadBalancerIP, &service),
-			)
+			tableBuilder.AddRow(&service, map[string]any{
+				"Kind":    "Service",
+				"Type":    "LoadBalancerIP",
+				"Address": service.Spec.LoadBalancerIP,
+			})
 		}
 	}
 	return nil
 }
 
-func getPodAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
+func getPodAddresses(
+	a kubectlplugin.HandlerArgs,
+	client gocoreV1.CoreV1Interface,
+	tableBuilder *kubectlplugin.TableBuilder,
+) error {
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, pod := range pods.Items {
 		for _, ip := range pod.Status.PodIPs {
-			table.Rows = append(
-				table.Rows,
-				newTableRow("Pod", pod.Name, "PodIP", ip.IP, &pod),
-			)
+			tableBuilder.AddRow(&pod, map[string]any{
+				"Kind":    "Pod",
+				"Type":    "PodIP",
+				"Address": ip.IP,
+			})
 		}
 	}
 	return nil
 }
 
-func getNodeAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {
+func getNodeAddresses(
+	a kubectlplugin.HandlerArgs,
+	client gocoreV1.CoreV1Interface,
+	tableBuilder *kubectlplugin.TableBuilder,
+) error {
 	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
 		return err
@@ -131,18 +140,12 @@ func getNodeAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interfa
 			if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
 				continue
 			}
-			table.Rows = append(
-				table.Rows,
-				newTableRow("Node", node.Name, string(address.Type), address.Address, &node),
-			)
+			tableBuilder.AddRow(&node, map[string]any{
+				"Kind":    "Node",
+				"Type":    address.Type,
+				"Address": address.Address,
+			})
 		}
 	}
 	return nil
-}
-
-func newTableRow(kind, name, addressType, address string, object runtime.Object) metaV1.TableRow {
-	return metaV1.TableRow{
-		Cells:  []interface{}{kind, name, addressType, address},
-		Object: runtime.RawExtension{Object: object},
-	}
 }

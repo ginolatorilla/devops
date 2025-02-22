@@ -10,15 +10,19 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 )
 
-var ResourceKindColumn = metaV1.TableColumnDefinition{
-	Name:        "Kind",
-	Type:        "string",
-	Description: "Kubernetes resource kind",
-}
-
 type TableBuilder struct {
 	Table       metaV1.Table
 	columnIndex map[string]int
+}
+
+type Column struct {
+	Name        string
+	Description string
+}
+
+var ResourceKindColumn = Column{
+	Name:        "Kind",
+	Description: "Kubernetes resource kind",
 }
 
 func NewTableBuilder() *TableBuilder {
@@ -46,10 +50,14 @@ func NewTableBuilder() *TableBuilder {
 	return &builder
 }
 
-func (tb *TableBuilder) AdditionalColumns(columns ...metaV1.TableColumnDefinition) *TableBuilder {
+func (tb *TableBuilder) AdditionalColumns(columns ...Column) *TableBuilder {
 	offset := len(tb.Table.ColumnDefinitions)
 	for i, column := range columns {
-		tb.Table.ColumnDefinitions = append(tb.Table.ColumnDefinitions, column)
+		tb.Table.ColumnDefinitions = append(tb.Table.ColumnDefinitions, metaV1.TableColumnDefinition{
+			Name:        column.Name,
+			Type:        "string",
+			Description: column.Description,
+		})
 		tb.columnIndex[column.Name] = i + offset
 	}
 	return tb

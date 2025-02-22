@@ -82,27 +82,16 @@ func filterUnhealthyPods(pods []coreV1.Pod) []coreV1.Pod {
 }
 
 func podsToTable(pods []coreV1.Pod) runtime.Object {
-	table := metaV1.Table{
-		TypeMeta: metaV1.TypeMeta{
-			APIVersion: "meta.k8s.io/v1",
-			Kind:       "Table",
-		},
-		ColumnDefinitions: []metaV1.TableColumnDefinition{
-			{Name: "Name", Type: "string", Format: "name"},
-			{Name: "Status", Type: "string"},
-			{Name: "Reason", Type: "string"},
-		},
-		Rows: make([]metaV1.TableRow, len(pods)),
+	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
+		kubectlplugin.Column{Name: "Status", Description: "The status of the pod"},
+		kubectlplugin.Column{Name: "Reason", Description: "The reason for the pod's status"},
+	)
+
+	for _, pod := range pods {
+		tableBuilder.AddRow(&pod, map[string]any{
+			"Status": pod.Status.Phase,
+			"Reason": pod.Status.Reason,
+		})
 	}
-	for i, pod := range pods {
-		table.Rows[i] = metaV1.TableRow{
-			Cells: []interface{}{
-				pod.Name,
-				pod.Status.Phase,
-				pod.Status.Reason,
-			},
-			Object: runtime.RawExtension{Object: &pod},
-		}
-	}
-	return &table
+	return &tableBuilder.Table
 }

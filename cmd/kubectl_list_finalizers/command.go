@@ -53,22 +53,15 @@ func listResourceUsers(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 		return nil, fmt.Errorf("failed to get all group version resources: %w", err)
 	}
 
-	jq, err := gojq.Parse(".items[] | {kind: .kind, namespace: .metadata.namespace, name: .metadata.name, finalizers: .metadata.finalizers}")
+	jq, err := gojq.Parse(".items[] | {kind: .kind, namespace: .metadata.namespace, name: .metadata.name, creationTimestamp: .metadata.creationTimestamp, finalizers: .metadata.finalizers}")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JQ query: %w", err)
 	}
 
-	table := metaV1.Table{
-		TypeMeta: metaV1.TypeMeta{
-			APIVersion: "meta.k8s.io/v1",
-			Kind:       "Table",
-		},
-		ColumnDefinitions: []metaV1.TableColumnDefinition{
-			{Name: "Kind", Type: "string"},
-			{Name: "Name", Type: "string", Format: "name"},
-			{Name: "Finalizers", Type: "string"},
-		},
-	}
+	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
+		kubectlplugin.ResourceKindColumn,
+		kubectlplugin.Column{Name: "Finalizers", Description: "The finalizers attached to the resource"},
+	)
 
 	for _, gvr := range gvrs {
 		resources, err := a.DynamicApi.Resource(gvr).Namespace(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
@@ -82,10 +75,10 @@ func listResourceUsers(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 		queryDynamicResource(a.Cmd.Context(), jq, resources, func(rawJson []byte) {
 			var object objectWithFinalizers
 			json.Unmarshal(rawJson, &object)
-			recordObjectsWithFinalizers(&table, object)
+			recordObjectsWithFinalizers(object, tableBuilder)
 		})
 	}
-	return &table, nil
+	return &tableBuilder.Table, nil
 }
 
 func getAllGroupVersionResources(a kubectlplugin.HandlerArgs) ([]schema.GroupVersionResource, error) {
@@ -141,27 +134,27 @@ func queryDynamicResource(ctx context.Context, jq *gojq.Query, object jsonSerial
 }
 
 type objectWithFinalizers struct {
-	Kind       string   `json:"kind"`
-	Name       string   `json:"name"`
-	Namespace  string   `json:"namespace"`
-	Finalizers []string `json:"finalizers"`
+	Kind              string   `json:"kind"`
+	Name              string   `json:"name"`
+	Namespace         string   `json:"namespace"`
+	CreationTimestamp string   `json:"creationTimestamp"`
+	Finalizers        []string `json:"finalizers"`
 }
 
-func recordObjectsWithFinalizers(table *metaV1.Table, object objectWithFinalizers) {
+func recordObjectsWithFinalizers(object objectWithFinalizers, tableBuilder *kubectlplugin.TableBuilder) {
 	for _, finalizer := range object.Finalizers {
-		table.Rows = append(table.Rows, metaV1.TableRow{
-			Cells: []interface{}{
-				object.Kind,
-				object.Name,
-				finalizer,
-			},
-			Object: runtime.RawExtension{Object: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"namespace": object.Namespace,
+		tableBuilder.AddRow(
+			&unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"namespace":         object.Namespace,
+						"name":              object.Name,
+						"creationTimestamp": object.CreationTimestamp,
 					},
 				},
-			}},
-		})
+			}, map[string]any{
+				"Kind":       object.Kind,
+				"Finalizers": finalizer,
+			})
 	}
 }
