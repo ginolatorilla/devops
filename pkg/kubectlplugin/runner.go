@@ -45,7 +45,7 @@ func (r *Runner) ToCobraCommand(use, short string) *cobra.Command {
 		RunE:         r.toRunE(),
 	}
 
-	r.configFlags.AddFlags(cmd.Flags())
+	r.configFlags.AddFlags(cmd)
 	return cmd
 }
 
@@ -59,7 +59,7 @@ func (r *Runner) ToCobraCommandWithArgs(use, short string, args cobra.Positional
 		RunE:         r.toRunE(),
 	}
 
-	r.configFlags.AddFlags(cmd.Flags())
+	r.configFlags.AddFlags(cmd)
 	return cmd
 }
 
@@ -99,13 +99,29 @@ func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 
 		if r.tabularHandler != nil {
 			table, err := r.tabularHandler(handlerArgs)
+			if table.APIVersion == "" {
+				table.APIVersion = "meta.k8s.io/v1"
+			}
+			if table.Kind == "" {
+				table.Kind = "Table"
+			}
+
 			if err != nil {
 				return err
 			}
 
-			if err := r.configFlags.GetTablePrinter().PrintObj(&table, cmd.OutOrStdout()); err != nil {
+			printer, err := r.configFlags.ToPrinter()
+			if err != nil {
+				return fmt.Errorf("failed to get printer: %w", err)
+			}
+			if err := printer.PrintObj(&table, cmd.OutOrStdout()); err != nil {
 				return fmt.Errorf("failed to print table: %w", err)
 			}
+
+			// printer := printers.NewTypeSetter(scheme.Scheme).ToPrinter(printers.NewTablePrinter(printers.PrintOptions{}))
+			// if err := printer.PrintObj(&table, cmd.OutOrStdout()); err != nil {
+			// 	return fmt.Errorf("failed to print table: %w", err)
+			// }
 		}
 		return nil
 	}

@@ -1,27 +1,34 @@
 package kubectlplugin
 
 import (
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	coreV1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type ConfigFlags struct {
 	genericclioptions.ConfigFlags
+	genericclioptions.PrintFlags
 	AllNamespaces bool
 	NoHeaders     bool
 }
 
 func NewConfigFlags() *ConfigFlags {
+	pf := genericclioptions.NewPrintFlags("")
+	pf.TypeSetterPrinter = printers.NewTypeSetter(scheme.Scheme)
 	return &ConfigFlags{
 		ConfigFlags: *genericclioptions.NewConfigFlags(true),
+		PrintFlags:  *pf,
 	}
 }
 
-func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
+func (f *ConfigFlags) AddFlags(cmd *cobra.Command) {
+	flags := cmd.Flags()
 	f.ConfigFlags.AddFlags(flags)
+	f.PrintFlags.AddFlags(cmd)
 	flags.BoolVarP(
 		&f.AllNamespaces,
 		"all-namespaces",
@@ -66,4 +73,20 @@ func (f *ConfigFlags) GetTablePrinter() printers.ResourcePrinter {
 		WithNamespace: f.AllNamespaces,
 		NoHeaders:     f.NoHeaders,
 	})
+}
+
+func (f *ConfigFlags) ToPrinter() (printers.ResourcePrinter, error) {
+	var outputFormat string
+	if f.OutputFormat != nil {
+		outputFormat = *f.OutputFormat
+	}
+
+	if outputFormat == "" {
+		tablePrinter := printers.NewTablePrinter(printers.PrintOptions{
+			NoHeaders:     f.NoHeaders,
+			WithNamespace: f.AllNamespaces,
+		})
+		return f.TypeSetterPrinter.ToPrinter(tablePrinter), nil
+	}
+	return f.PrintFlags.ToPrinter()
 }
