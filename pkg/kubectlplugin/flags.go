@@ -12,22 +12,26 @@ import (
 type ConfigFlags struct {
 	genericclioptions.ConfigFlags
 	genericclioptions.PrintFlags
-	AllNamespaces bool
-	NoHeaders     bool
+	genericclioptions.ResourceBuilderFlags
+	NoHeaders bool
 }
 
 func NewConfigFlags() *ConfigFlags {
+	rbf := (&genericclioptions.ResourceBuilderFlags{}).WithAllNamespaces(false)
 	return &ConfigFlags{
-		ConfigFlags: *genericclioptions.NewConfigFlags(true),
+		ConfigFlags:          *genericclioptions.NewConfigFlags(true),
+		ResourceBuilderFlags: *rbf,
 	}
 }
 
 func NewConfigFlagsWithResourcePrinters() *ConfigFlags {
 	pf := genericclioptions.NewPrintFlags("")
+	rbf := (&genericclioptions.ResourceBuilderFlags{}).WithAllNamespaces(false)
 	pf.TypeSetterPrinter = printers.NewTypeSetter(scheme.Scheme)
 	return &ConfigFlags{
-		ConfigFlags: *genericclioptions.NewConfigFlags(true),
-		PrintFlags:  *pf,
+		ConfigFlags:          *genericclioptions.NewConfigFlags(true),
+		PrintFlags:           *pf,
+		ResourceBuilderFlags: *rbf,
 	}
 }
 
@@ -35,14 +39,7 @@ func (f *ConfigFlags) AddFlags(cmd *cobra.Command) {
 	flags := cmd.Flags()
 	f.ConfigFlags.AddFlags(flags)
 	f.PrintFlags.AddFlags(cmd)
-	flags.BoolVarP(
-		&f.AllNamespaces,
-		"all-namespaces",
-		"A",
-		false,
-		"If present, list the requested object(s) across all namespaces. "+
-			"Namespace in current context is ignored even if specified with --namespace.",
-	)
+	f.ResourceBuilderFlags.AddFlags(flags)
 	flags.BoolVar(
 		&f.NoHeaders,
 		"no-headers",
@@ -52,7 +49,7 @@ func (f *ConfigFlags) AddFlags(cmd *cobra.Command) {
 }
 
 func (f *ConfigFlags) GetEffectiveNamespace(kubeConfig clientcmd.ClientConfig) (string, error) {
-	if f.AllNamespaces {
+	if f.AllNamespaces != nil && *f.AllNamespaces {
 		return coreV1.NamespaceAll, nil
 	}
 
@@ -83,7 +80,7 @@ func (f *ConfigFlags) ToPrinter() (printers.ResourcePrinter, error) {
 	if outputFormat == "" {
 		tablePrinter := printers.NewTablePrinter(printers.PrintOptions{
 			NoHeaders:     f.NoHeaders,
-			WithNamespace: f.AllNamespaces,
+			WithNamespace: f.AllNamespaces != nil && *f.AllNamespaces,
 		})
 		return f.TypeSetterPrinter.ToPrinter(tablePrinter), nil
 	}
