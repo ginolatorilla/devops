@@ -17,6 +17,12 @@ type ConfigFlags struct {
 }
 
 func NewConfigFlags() *ConfigFlags {
+	return &ConfigFlags{
+		ConfigFlags: *genericclioptions.NewConfigFlags(true),
+	}
+}
+
+func NewConfigFlagsWithResourcePrinters() *ConfigFlags {
 	pf := genericclioptions.NewPrintFlags("")
 	pf.TypeSetterPrinter = printers.NewTypeSetter(scheme.Scheme)
 	return &ConfigFlags{

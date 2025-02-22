@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -27,9 +28,17 @@ type HandlerArgs struct {
 	ConfigFlags  *ConfigFlags
 }
 
-type Handler func(args HandlerArgs) error
+type Handler func(args HandlerArgs) (runtime.Object, error)
 
 func NewRunner(apiFactory ApiFactory, handler Handler) *Runner {
+	return &Runner{
+		configFlags: NewConfigFlagsWithResourcePrinters(),
+		apiFactory:  apiFactory,
+		handler:     handler,
+	}
+}
+
+func NewRunnerWithoutResourcePrinters(apiFactory ApiFactory, handler Handler) *Runner {
 	return &Runner{
 		configFlags: NewConfigFlags(),
 		apiFactory:  apiFactory,
@@ -93,7 +102,21 @@ func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 		}
 
 		if r.handler != nil {
-			r.handler(handlerArgs)
+			object, err := r.handler(handlerArgs)
+			if err != nil {
+				return err
+			}
+			if object == nil {
+				return nil
+			}
+
+			printer, err := r.configFlags.ToPrinter()
+			if err != nil {
+				return fmt.Errorf("failed to get printer: %w", err)
+			}
+			if err := printer.PrintObj(object, cmd.OutOrStdout()); err != nil {
+				return fmt.Errorf("failed to print object: %w", err)
+			}
 			return nil
 		}
 
@@ -117,11 +140,6 @@ func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 			if err := printer.PrintObj(&table, cmd.OutOrStdout()); err != nil {
 				return fmt.Errorf("failed to print table: %w", err)
 			}
-
-			// printer := printers.NewTypeSetter(scheme.Scheme).ToPrinter(printers.NewTablePrinter(printers.PrintOptions{}))
-			// if err := printer.PrintObj(&table, cmd.OutOrStdout()); err != nil {
-			// 	return fmt.Errorf("failed to print table: %w", err)
-			// }
 		}
 		return nil
 	}
