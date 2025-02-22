@@ -10,48 +10,42 @@ type RunnerOpts func(*Runner)
 
 func WithResourcePrinters() RunnerOpts {
 	return func(r *Runner) {
-		r.configFlags = NewConfigFlagsWithResourcePrinters()
+		r.ConfigFlags = NewConfigFlagsWithResourcePrinters()
 	}
 }
 
 func WithKubeApi(kubeApi kubernetes.Interface) RunnerOpts {
 	return func(r *Runner) {
-		r.kubeApi = kubeApi
+		r.KubeApi = kubeApi
 	}
 }
 
 func WithDefaultKubeApi() RunnerOpts {
 	return func(r *Runner) {
-		config, err := r.configFlags.ToRESTConfig()
+		config, err := r.ConfigFlags.ToRESTConfig()
 		if err != nil {
 			panic(err)
 		}
-		r.kubeApi = kubernetes.NewForConfigOrDie(config)
+		r.KubeApi = kubernetes.NewForConfigOrDie(config)
 	}
 }
 
 func WithDiscoveryApiV2(discoveryApi discovery.DiscoveryInterface, dynamicApi dynamic.Interface) RunnerOpts {
 	return func(r *Runner) {
-		r.discoveryApi = discoveryApi
-		r.dynamicApi = dynamicApi
-	}
-}
-
-func WithDiscoveryApi(daf DynamicApiFactory) RunnerOpts {
-	return func(r *Runner) {
-		r.dynamicApiFactory = daf
+		r.DiscoveryApi = discoveryApi
+		r.DynamicApi = dynamicApi
 	}
 }
 
 func WithDefaultDiscoveryApi() RunnerOpts {
 	return func(r *Runner) {
-		config, err := r.configFlags.ToRESTConfig()
+		config, err := r.ConfigFlags.ToRESTConfig()
 		const DisableRateLimiter = -1
 		config.QPS = DisableRateLimiter
 		if err != nil {
 			panic(err)
 		}
-		r.discoveryApi = discovery.NewDiscoveryClientForConfigOrDie(config)
-		r.dynamicApi = dynamic.NewForConfigOrDie(config)
+		r.DiscoveryApi = discovery.NewDiscoveryClientForConfigOrDie(config)
+		r.DynamicApi = dynamic.NewForConfigOrDie(config)
 	}
 }

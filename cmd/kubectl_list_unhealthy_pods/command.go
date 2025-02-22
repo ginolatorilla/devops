@@ -33,7 +33,7 @@ import (
 
 func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunnerV2(listUnhealthyPods, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
+		NewRunner(listUnhealthyPods, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",

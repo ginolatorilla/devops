@@ -11,43 +11,25 @@ import (
 )
 
 type Runner struct {
-	configFlags       *ConfigFlags
-	apiFactory        ApiFactory
-	dynamicApiFactory DynamicApiFactory
-	handler           Handler
-
-	kubeApi      kubernetes.Interface
-	discoveryApi discovery.DiscoveryInterface
-	dynamicApi   dynamic.Interface
-}
-
-type HandlerArgs struct {
+	ConfigFlags  *ConfigFlags
+	handler      Handler
 	KubeApi      kubernetes.Interface
 	DiscoveryApi discovery.DiscoveryInterface
 	DynamicApi   dynamic.Interface
-	Namespace    string
-	Cmd          *cobra.Command
-	Args         []string
-	ConfigFlags  *ConfigFlags
+}
+
+type HandlerArgs struct {
+	Runner
+	Namespace string
+	Cmd       *cobra.Command
+	Args      []string
 }
 
 type Handler func(args HandlerArgs) (runtime.Object, error)
 
-func NewRunner(apiFactory ApiFactory, handler Handler, opts ...RunnerOpts) *Runner {
+func NewRunner(handler Handler, opts ...RunnerOpts) *Runner {
 	r := &Runner{
-		configFlags: NewConfigFlags(),
-		apiFactory:  apiFactory,
-		handler:     handler,
-	}
-	for _, opt := range opts {
-		opt(r)
-	}
-	return r
-}
-
-func NewRunnerV2(handler Handler, opts ...RunnerOpts) *Runner {
-	r := &Runner{
-		configFlags: NewConfigFlags(),
+		ConfigFlags: NewConfigFlags(),
 		handler:     handler,
 	}
 	for _, opt := range opts {
@@ -63,7 +45,7 @@ func (r *Runner) ToCobraCommand(use, short string) *cobra.Command {
 		RunE:         r.toRunE(),
 	}
 
-	r.configFlags.AddFlags(cmd)
+	r.ConfigFlags.AddFlags(cmd)
 	return cmd
 }
 
@@ -77,26 +59,23 @@ func (r *Runner) ToCobraCommandWithArgs(use, short string, args cobra.Positional
 		RunE:         r.toRunE(),
 	}
 
-	r.configFlags.AddFlags(cmd)
+	r.ConfigFlags.AddFlags(cmd)
 	return cmd
 }
 
 func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		kubeConfig := r.configFlags.ToRawKubeConfigLoader()
-		namespace, err := r.configFlags.GetEffectiveNamespace(kubeConfig)
+		kubeConfig := r.ConfigFlags.ToRawKubeConfigLoader()
+		namespace, err := r.ConfigFlags.GetEffectiveNamespace(kubeConfig)
 		if err != nil {
 			return fmt.Errorf("failed to get effective namespace: %w", err)
 		}
 
 		handlerArgs := HandlerArgs{
-			KubeApi:      r.kubeApi,
-			DiscoveryApi: r.discoveryApi,
-			DynamicApi:   r.dynamicApi,
-			Namespace:    namespace,
-			Cmd:          cmd,
-			Args:         args,
-			ConfigFlags:  r.configFlags,
+			Runner:    *r,
+			Namespace: namespace,
+			Cmd:       cmd,
+			Args:      args,
 		}
 
 		if r.handler != nil {
@@ -108,7 +87,7 @@ func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 				return nil
 			}
 
-			printer, err := r.configFlags.ToPrinter()
+			printer, err := r.ConfigFlags.ToPrinter()
 			if err != nil {
 				return fmt.Errorf("failed to get printer: %w", err)
 			}
