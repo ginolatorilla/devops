@@ -48,7 +48,7 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listResourceUsers, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
+		NewRunner(listResourceUsers, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",

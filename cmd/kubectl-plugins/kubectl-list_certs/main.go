@@ -42,7 +42,7 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listCerts, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
+		NewRunner(listCerts, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",

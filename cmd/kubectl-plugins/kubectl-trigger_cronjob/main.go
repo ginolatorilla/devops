@@ -38,7 +38,6 @@ func main() {
 }
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-
 	return kubectlplugin.
 		NewRunner(triggerCronJob, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(

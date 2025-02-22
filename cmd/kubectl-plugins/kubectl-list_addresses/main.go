@@ -43,7 +43,7 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listAddresses, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
+		NewRunner(listAddresses, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",

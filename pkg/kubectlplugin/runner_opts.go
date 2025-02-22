@@ -8,6 +8,12 @@ import (
 
 type RunnerOpts func(*Runner)
 
+func WithTablePrinter() RunnerOpts {
+	return func(r *Runner) {
+		r.ConfigFlags = NewConfigFlags()
+	}
+}
+
 func WithResourcePrinters() RunnerOpts {
 	return func(r *Runner) {
 		r.ConfigFlags = NewConfigFlagsWithResourcePrinters()
