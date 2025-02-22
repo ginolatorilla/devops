@@ -74,13 +74,6 @@ func (f *ConfigFlags) GetEffectiveNamespace(kubeConfig clientcmd.ClientConfig) (
 	return namespace, nil
 }
 
-func (f *ConfigFlags) GetTablePrinter() printers.ResourcePrinter {
-	return printers.NewTablePrinter(printers.PrintOptions{
-		WithNamespace: f.AllNamespaces,
-		NoHeaders:     f.NoHeaders,
-	})
-}
-
 func (f *ConfigFlags) ToPrinter() (printers.ResourcePrinter, error) {
 	var outputFormat string
 	if f.OutputFormat != nil {
