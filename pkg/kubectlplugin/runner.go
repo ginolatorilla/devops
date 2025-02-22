@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -18,15 +17,6 @@ type Runner struct {
 	DiscoveryApi discovery.DiscoveryInterface
 	DynamicApi   dynamic.Interface
 }
-
-type HandlerArgs struct {
-	Runner
-	Namespace string
-	Cmd       *cobra.Command
-	Args      []string
-}
-
-type Handler func(args HandlerArgs) (runtime.Object, error)
 
 func NewRunner(handler Handler, opts ...RunnerOpts) *Runner {
 	r := &Runner{
