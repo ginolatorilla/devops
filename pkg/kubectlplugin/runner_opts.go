@@ -1,9 +1,12 @@
 package kubectlplugin
 
 import (
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 type RunnerOpts func(*Runner)
@@ -16,7 +19,9 @@ func WithTablePrinter() RunnerOpts {
 
 func WithResourcePrinters() RunnerOpts {
 	return func(r *Runner) {
-		r.ConfigFlags = NewConfigFlagsWithResourcePrinters()
+		pf := genericclioptions.NewPrintFlags("")
+		pf.TypeSetterPrinter = printers.NewTypeSetter(scheme.Scheme)
+		r.ConfigFlags.PrintFlags = *pf
 	}
 }
 
