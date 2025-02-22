@@ -25,12 +25,13 @@ import (
 	"log/slog"
 	"os"
 
+	coreV1 "k8s.io/api/core/v1"
+
 	"github.com/dustin/go-humanize"
 	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
-	coreV1 "k8s.io/api/core/v1"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func main() {
@@ -50,19 +51,6 @@ func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 }
 
 func listCerts(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	client := a.KubeApi.CoreV1()
-	secrets, err := client.
-		Secrets(a.Namespace).
-		List(a.Cmd.Context(), metaV1.ListOptions{
-			FieldSelector: "type=kubernetes.io/tls",
-		})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list secrets: %w", err)
-	}
-	return secretsToTable(secrets.Items), nil
-}
-
-func secretsToTable(secrets []coreV1.Secret) runtime.Object {
 	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
 		kubectlplugin.Column{Name: "Key", Description: "The key of the certificate in the secret"},
 		kubectlplugin.Column{Name: "Not_Before", Description: "The date and time when the certificate will be effective"},
@@ -70,7 +58,20 @@ func secretsToTable(secrets []coreV1.Secret) runtime.Object {
 		kubectlplugin.Column{Name: "Not_After", Description: "The date and time when the certificate will expire"},
 		kubectlplugin.Column{Name: "Expires", Description: "How long until the certificate expires"},
 	)
-	for _, secret := range secrets {
+	a.ConfigFlags.WithAll(true).WithFieldSelector("type=kubernetes.io/tls")
+	a.ToResourceFinder("secrets").Do().Visit(secretsToTable(tableBuilder))
+	return &tableBuilder.Table, nil
+}
+
+func secretsToTable(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+	return func(info *resource.Info, err error) error {
+		if err != nil {
+			return err
+		}
+		secret, ok := info.Object.(*coreV1.Secret)
+		if !ok {
+			panic(fmt.Errorf("expected secret, got %T", info.Object))
+		}
 		tlsCertKey := "tls.crt"
 		cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 		if err != nil {
@@ -80,15 +81,15 @@ func secretsToTable(secrets []coreV1.Secret) runtime.Object {
 				"secretName", secret.GetName(),
 				"key", tlsCertKey,
 				"error", err)
-			continue
+			return nil
 		}
-		tableBuilder.AddRow(&secret, map[string]interface{}{
+		tableBuilder.AddRow(secret, map[string]interface{}{
 			"Key":        tlsCertKey,
 			"Not_Before": cert.Leaf.NotBefore,
 			"Effective":  humanize.Time(cert.Leaf.NotBefore),
 			"Not_After":  cert.Leaf.NotAfter,
 			"Expires":    humanize.Time(cert.Leaf.NotAfter),
 		})
+		return nil
 	}
-	return &tableBuilder.Table
 }

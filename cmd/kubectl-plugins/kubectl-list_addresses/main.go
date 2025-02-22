@@ -20,6 +20,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 
 	devopscmd "github.com/ginolatorilla/devops/cmd/devops/cmd"
@@ -52,6 +53,7 @@ func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 		kubectlplugin.Column{Name: "Address", Description: "The IP address"},
 	)
 
+	a.ConfigFlags.WithAll(true)
 	for _, d := range []struct {
 		kind        string
 		visitorFunc resource.VisitorFunc
@@ -60,10 +62,7 @@ func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 		{"pod", getPodAddresses(tableBuilder)},
 		{"node", getNodeAddresses(tableBuilder)},
 	} {
-		if err := a.ToResourceBuilder().
-			ResourceTypeOrNameArgs(true, d.kind).
-			Do().
-			Visit(d.visitorFunc); err != nil {
+		if err := a.ToResourceFinder(d.kind).Do().Visit(d.visitorFunc); err != nil {
 			slog.Warn("failed to list resources", "kind", d.kind, "error", err)
 		}
 	}
@@ -73,34 +72,38 @@ func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 
 func getServiceAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
-		services := info.Object.(*coreV1.ServiceList)
-		for _, service := range services.Items {
-			for _, ip := range service.Spec.ClusterIPs {
-				if ip == "" || ip == "None" {
-					continue
-				}
-				tableBuilder.AddRow(&service, map[string]any{
-					"Kind":    "Service",
-					"Type":    "ClusterIP",
-					"Address": ip,
-				})
+		if err != nil {
+			return err
+		}
+		service, ok := info.Object.(*coreV1.Service)
+		if !ok {
+			panic(fmt.Errorf("expected service, got %T", info.Object))
+		}
+		for _, ip := range service.Spec.ClusterIPs {
+			if ip == "" || ip == "None" {
+				continue
 			}
+			tableBuilder.AddRow(service, map[string]any{
+				"Kind":    "Service",
+				"Type":    "ClusterIP",
+				"Address": ip,
+			})
+		}
 
-			for _, ip := range service.Spec.ExternalIPs {
-				tableBuilder.AddRow(&service, map[string]any{
-					"Kind":    "Service",
-					"Type":    "ExternalIP",
-					"Address": ip,
-				})
-			}
+		for _, ip := range service.Spec.ExternalIPs {
+			tableBuilder.AddRow(service, map[string]any{
+				"Kind":    "Service",
+				"Type":    "ExternalIP",
+				"Address": ip,
+			})
+		}
 
-			if service.Spec.LoadBalancerIP != "" {
-				tableBuilder.AddRow(&service, map[string]any{
-					"Kind":    "Service",
-					"Type":    "LoadBalancerIP",
-					"Address": service.Spec.LoadBalancerIP,
-				})
-			}
+		if service.Spec.LoadBalancerIP != "" {
+			tableBuilder.AddRow(service, map[string]any{
+				"Kind":    "Service",
+				"Type":    "LoadBalancerIP",
+				"Address": service.Spec.LoadBalancerIP,
+			})
 		}
 		return nil
 	}
@@ -108,15 +111,19 @@ func getServiceAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.Visi
 
 func getPodAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
-		pods := info.Object.(*coreV1.PodList)
-		for _, pod := range pods.Items {
-			for _, ip := range pod.Status.PodIPs {
-				tableBuilder.AddRow(&pod, map[string]any{
-					"Kind":    "Pod",
-					"Type":    "PodIP",
-					"Address": ip.IP,
-				})
-			}
+		if err != nil {
+			return err
+		}
+		pod, ok := info.Object.(*coreV1.Pod)
+		if !ok {
+			panic(fmt.Errorf("expected pod, got %T", info.Object))
+		}
+		for _, ip := range pod.Status.PodIPs {
+			tableBuilder.AddRow(pod, map[string]any{
+				"Kind":    "Pod",
+				"Type":    "PodIP",
+				"Address": ip.IP,
+			})
 		}
 		return nil
 	}
@@ -124,18 +131,22 @@ func getPodAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorF
 
 func getNodeAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
-		nodes := info.Object.(*coreV1.NodeList)
-		for _, node := range nodes.Items {
-			for _, address := range node.Status.Addresses {
-				if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
-					continue
-				}
-				tableBuilder.AddRow(&node, map[string]any{
-					"Kind":    "Node",
-					"Type":    address.Type,
-					"Address": address.Address,
-				})
+		if err != nil {
+			return err
+		}
+		node, ok := info.Object.(*coreV1.Node)
+		if !ok {
+			panic(fmt.Errorf("expected node, got %T", info.Object))
+		}
+		for _, address := range node.Status.Addresses {
+			if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
+				continue
 			}
+			tableBuilder.AddRow(node, map[string]any{
+				"Kind":    "Node",
+				"Type":    address.Type,
+				"Address": address.Address,
+			})
 		}
 		return nil
 	}

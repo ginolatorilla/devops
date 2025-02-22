@@ -17,7 +17,7 @@ type ConfigFlags struct {
 }
 
 func NewConfigFlags() *ConfigFlags {
-	rbf := (&genericclioptions.ResourceBuilderFlags{}).WithAllNamespaces(false)
+	rbf := (&genericclioptions.ResourceBuilderFlags{}).WithAllNamespaces(false).WithScheme(scheme.Scheme)
 	return &ConfigFlags{
 		ConfigFlags:          *genericclioptions.NewConfigFlags(true),
 		ResourceBuilderFlags: *rbf,
@@ -26,7 +26,7 @@ func NewConfigFlags() *ConfigFlags {
 
 func NewConfigFlagsWithResourcePrinters() *ConfigFlags {
 	pf := genericclioptions.NewPrintFlags("")
-	rbf := (&genericclioptions.ResourceBuilderFlags{}).WithAllNamespaces(false)
+	rbf := (&genericclioptions.ResourceBuilderFlags{}).WithAllNamespaces(false).WithScheme(scheme.Scheme)
 	pf.TypeSetterPrinter = printers.NewTypeSetter(scheme.Scheme)
 	return &ConfigFlags{
 		ConfigFlags:          *genericclioptions.NewConfigFlags(true),
