@@ -21,9 +21,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 	batchV1 "k8s.io/api/batch/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,22 +30,20 @@ import (
 )
 
 func main() {
-	if err := newCommand(kubectlplugin.WithDefaultKubeApi()).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-	return kubectlplugin.
-		NewRunner(triggerCronJob, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
+func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
+	runnerOpts = append(runnerOpts, kplug.WithResourcePrinters())
+	return kplug.
+		NewRunner(triggerCronJob, runnerOpts...).
 		ToCobraCommand(
 			"kubectl-trigger_cronjob",
 			"Launches a new job from an existing cronjob",
 		)
 }
 
-func triggerCronJob(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
+func triggerCronJob(a kplug.HandlerArgs) (runtime.Object, error) {
 	cronJobName := a.Args[0]
 	client := a.KubeApi.BatchV1()
 	cronJob, err := client.

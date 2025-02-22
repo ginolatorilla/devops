@@ -23,7 +23,7 @@ import (
 	"log/slog"
 
 	devopscmd "github.com/ginolatorilla/devops/cmd/devops/cmd"
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 
 	coreV1 "k8s.io/api/core/v1"
@@ -32,28 +32,24 @@ import (
 )
 
 func main() {
-	newCommand(kubectlplugin.WithDefaultKubeApi()).Execute()
+	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-	return kubectlplugin.
-		NewRunner(listAddresses,
-			append(runnerOpts,
-				kubectlplugin.WithTablePrinter(),
-				kubectlplugin.WithAllNamespaces(),
-			)...).
+func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
+	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(listAddresses, runnerOpts...).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",
-			kubectlplugin.WithVersion(devopscmd.Version+"-"+devopscmd.CommitHash),
+			kplug.WithVersion(devopscmd.Version+"-"+devopscmd.CommitHash),
 		)
 }
 
-func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
-		kubectlplugin.ResourceKindColumn,
-		kubectlplugin.Column{Name: "Type", Description: "The type of address"},
-		kubectlplugin.Column{Name: "Address", Description: "The IP address"},
+func listAddresses(a kplug.HandlerArgs) (runtime.Object, error) {
+	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
+		kplug.ResourceKindColumn,
+		kplug.Column{Name: "Type", Description: "The type of address"},
+		kplug.Column{Name: "Address", Description: "The IP address"},
 	)
 
 	a.ConfigFlags.WithAll(true)
@@ -73,9 +69,9 @@ func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	return &tableBuilder.Table, nil
 }
 
-func getServiceAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+func getServiceAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
-		service := kubectlplugin.As[*coreV1.Service](info.Object)
+		service := kplug.As[*coreV1.Service](info.Object)
 		for _, ip := range service.Spec.ClusterIPs {
 			if ip == "" || ip == "None" {
 				continue
@@ -106,9 +102,9 @@ func getServiceAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.Visi
 	}
 }
 
-func getPodAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+func getPodAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		pod := kubectlplugin.As[*coreV1.Pod](info.Object)
+		pod := kplug.As[*coreV1.Pod](info.Object)
 		for _, ip := range pod.Status.PodIPs {
 			tableBuilder.AddRow(pod, map[string]any{
 				"Kind":    "Pod",
@@ -120,9 +116,9 @@ func getPodAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorF
 	}
 }
 
-func getNodeAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+func getNodeAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		node := kubectlplugin.As[*coreV1.Node](info.Object)
+		node := kplug.As[*coreV1.Node](info.Object)
 		for _, address := range node.Status.Addresses {
 			if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
 				continue

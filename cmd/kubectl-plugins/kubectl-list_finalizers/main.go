@@ -21,9 +21,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,28 +30,22 @@ import (
 )
 
 func main() {
-	if err := newCommand(kubectlplugin.WithDefaultDiscoveryApi()).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	newCommand(kplug.WithDefaultDiscoveryApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-	return kubectlplugin.
-		NewRunner(findResourcesWithFinalizers, append(runnerOpts,
-			kubectlplugin.WithTablePrinter(),
-			kubectlplugin.WithAllNamespaces(),
-		)...).
+func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
+	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(findResourcesWithFinalizers, runnerOpts...).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",
 		)
 }
 
-func findResourcesWithFinalizers(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
-		kubectlplugin.ResourceKindColumn,
-		kubectlplugin.Column{Name: "Finalizers", Description: "The finalizers attached to the resource"},
+func findResourcesWithFinalizers(a kplug.HandlerArgs) (runtime.Object, error) {
+	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
+		kplug.ResourceKindColumn,
+		kplug.Column{Name: "Finalizers", Description: "The finalizers attached to the resource"},
 	)
 	apiResourceList, err := a.DiscoveryApi.ServerPreferredResources()
 	if err != nil {
@@ -62,7 +55,7 @@ func findResourcesWithFinalizers(a kubectlplugin.HandlerArgs) (runtime.Object, e
 	for _, ar := range apiResourceList {
 		for _, r := range ar.APIResources {
 			if err := a.ToResourceFinder(r.Name).Do().Visit(func(i *resource.Info, err error) error {
-				uo := kubectlplugin.As[*unstructured.Unstructured](i.Object)
+				uo := kplug.As[*unstructured.Unstructured](i.Object)
 				finalizers := uo.GetFinalizers()
 				if len(finalizers) == 0 {
 					return nil

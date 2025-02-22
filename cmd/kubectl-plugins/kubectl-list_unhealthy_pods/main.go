@@ -21,10 +21,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"slices"
 
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 
 	coreV1 "k8s.io/api/core/v1"
@@ -33,31 +32,23 @@ import (
 )
 
 func main() {
-	if err := newCommand(kubectlplugin.WithDefaultKubeApi()).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-	return kubectlplugin.
-		NewRunner(listUnhealthyPods,
-			append(runnerOpts,
-				kubectlplugin.WithTablePrinter(),
-				kubectlplugin.WithAllNamespaces(),
-			)...).
+func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
+	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(listUnhealthyPods, runnerOpts...).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",
 		)
 }
 
-func listUnhealthyPods(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
-		kubectlplugin.Column{Name: "Status", Description: "The status of the pod"},
-		kubectlplugin.Column{Name: "Reason", Description: "The reason for the pod's status"},
+func listUnhealthyPods(a kplug.HandlerArgs) (runtime.Object, error) {
+	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
+		kplug.Column{Name: "Status", Description: "The status of the pod"},
+		kplug.Column{Name: "Reason", Description: "The reason for the pod's status"},
 	)
-
 	a.ConfigFlags.WithAll(true)
 	if err := a.ToResourceFinder("pods").Do().Visit(getUnhealthyPods(tableBuilder)); err != nil {
 		return nil, fmt.Errorf("failed to list unhealthy pods: %w", err)
@@ -65,9 +56,9 @@ func listUnhealthyPods(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	return &tableBuilder.Table, nil
 }
 
-func getUnhealthyPods(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+func getUnhealthyPods(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		pod := kubectlplugin.As[*coreV1.Pod](info.Object)
+		pod := kplug.As[*coreV1.Pod](info.Object)
 		if pod.Status.Phase == coreV1.PodFailed {
 			for _, cs := range pod.Status.ContainerStatuses {
 				if cs.State.Terminated != nil {
@@ -80,14 +71,14 @@ func getUnhealthyPods(tableBuilder *kubectlplugin.TableBuilder) resource.Visitor
 			})
 			return nil
 		}
-
 		if pod.Status.Phase == coreV1.PodPending {
 			if slices.ContainsFunc(
 				pod.Status.ContainerStatuses,
 				func(cs coreV1.ContainerStatus) bool {
 					if cs.State.Waiting != nil {
 						pod.Status.Reason = cs.State.Waiting.Reason
-						return cs.State.Waiting.Reason != "ContainerCreating" && cs.State.Waiting.Reason != "PodInitializing"
+						return cs.State.Waiting.Reason != "ContainerCreating" &&
+							cs.State.Waiting.Reason != "PodInitializing"
 					}
 					return false
 				},

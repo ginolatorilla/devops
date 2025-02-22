@@ -20,12 +20,10 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
-	"os"
 	"slices"
 
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 
 	coreV1 "k8s.io/api/core/v1"
@@ -34,32 +32,25 @@ import (
 )
 
 func main() {
-	if err := newCommand(kubectlplugin.WithDefaultKubeApi()).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-	return kubectlplugin.
-		NewRunner(lookupAddress,
-			append(runnerOpts,
-				kubectlplugin.WithTablePrinter(),
-				kubectlplugin.WithAllNamespaces(),
-			)...).
+func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
+	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(lookupAddress, runnerOpts...).
 		ToCobraCommand(
 			"kubectl-lookup_address",
 			"Finds Kubernetes resources by IP address",
-			kubectlplugin.WithArgs(cobra.ExactArgs(1), []string{"ip-address"}),
+			kplug.WithArgs(cobra.ExactArgs(1), []string{"ip-address"}),
 		)
 }
 
-func lookupAddress(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
+func lookupAddress(a kplug.HandlerArgs) (runtime.Object, error) {
 	ipAddress := a.Args[0]
-	tableBuilder := kubectlplugin.NewTableBuilder().
+	tableBuilder := kplug.NewTableBuilder().
 		AdditionalColumns(
-			kubectlplugin.ResourceKindColumn,
-			kubectlplugin.Column{Name: "Type", Description: "The type of address"},
+			kplug.ResourceKindColumn,
+			kplug.Column{Name: "Type", Description: "The type of address"},
 		)
 	a.ConfigFlags.WithAll(true)
 	for _, d := range []struct {
@@ -77,9 +68,9 @@ func lookupAddress(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	return &tableBuilder.Table, nil
 }
 
-func findAddressInService(tableBuilder *kubectlplugin.TableBuilder, ipAddress string) resource.VisitorFunc {
+func findAddressInService(tableBuilder *kplug.TableBuilder, ipAddress string) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		service := kubectlplugin.As[*coreV1.Service](info.Object)
+		service := kplug.As[*coreV1.Service](info.Object)
 		if slices.Contains(service.Spec.ClusterIPs, ipAddress) {
 			tableBuilder.AddRow(service, map[string]any{"Type": "ClusterIP", "Kind": "Service"})
 		}
@@ -93,9 +84,9 @@ func findAddressInService(tableBuilder *kubectlplugin.TableBuilder, ipAddress st
 	}
 }
 
-func findAddressInPod(tableBuilder *kubectlplugin.TableBuilder, ipAddress string) resource.VisitorFunc {
+func findAddressInPod(tableBuilder *kplug.TableBuilder, ipAddress string) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		pod := kubectlplugin.As[*coreV1.Pod](info.Object)
+		pod := kplug.As[*coreV1.Pod](info.Object)
 		if slices.ContainsFunc(pod.Status.PodIPs, func(p coreV1.PodIP) bool {
 			return p.IP == ipAddress
 		}) {
@@ -105,9 +96,9 @@ func findAddressInPod(tableBuilder *kubectlplugin.TableBuilder, ipAddress string
 	}
 }
 
-func findAddressInNode(tableBuilder *kubectlplugin.TableBuilder, ipAddress string) resource.VisitorFunc {
+func findAddressInNode(tableBuilder *kplug.TableBuilder, ipAddress string) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		node := kubectlplugin.As[*coreV1.Node](info.Object)
+		node := kplug.As[*coreV1.Node](info.Object)
 		for _, n := range node.Status.Addresses {
 			if n.Address == ipAddress {
 				tableBuilder.AddRow(node, map[string]any{"Type": n.Type, "Kind": "Node"})

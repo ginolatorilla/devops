@@ -21,55 +21,46 @@ package main
 
 import (
 	"crypto/tls"
-	"fmt"
 	"log/slog"
-	"os"
 
 	coreV1 "k8s.io/api/core/v1"
 
 	"github.com/dustin/go-humanize"
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func main() {
-	if err := newCommand(kubectlplugin.WithDefaultKubeApi()).Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
-	return kubectlplugin.
-		NewRunner(listCerts,
-			append(runnerOpts,
-				kubectlplugin.WithTablePrinter(),
-				kubectlplugin.WithAllNamespaces(),
-			)...).
+func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
+	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(listCerts, runnerOpts...).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",
 		)
 }
 
-func listCerts(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
-		kubectlplugin.Column{Name: "Key", Description: "The key of the certificate in the secret"},
-		kubectlplugin.Column{Name: "Not_Before", Description: "The date and time when the certificate will be effective"},
-		kubectlplugin.Column{Name: "Effective", Description: "How long until the certificate becomes effective"},
-		kubectlplugin.Column{Name: "Not_After", Description: "The date and time when the certificate will expire"},
-		kubectlplugin.Column{Name: "Expires", Description: "How long until the certificate expires"},
+func listCerts(a kplug.HandlerArgs) (runtime.Object, error) {
+	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
+		kplug.Column{Name: "Key", Description: "The key of the certificate in the secret"},
+		kplug.Column{Name: "Not_Before", Description: "The date and time when the certificate will be effective"},
+		kplug.Column{Name: "Effective", Description: "How long until the certificate becomes effective"},
+		kplug.Column{Name: "Not_After", Description: "The date and time when the certificate will expire"},
+		kplug.Column{Name: "Expires", Description: "How long until the certificate expires"},
 	)
 	a.ConfigFlags.WithAll(true).WithFieldSelector("type=kubernetes.io/tls")
 	a.ToResourceFinder("secrets").Do().Visit(secretsToTable(tableBuilder))
 	return &tableBuilder.Table, nil
 }
 
-func secretsToTable(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+func secretsToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
-		secret := kubectlplugin.As[*coreV1.Secret](info.Object)
+		secret := kplug.As[*coreV1.Secret](info.Object)
 		tlsCertKey := "tls.crt"
 		cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 		if err != nil {
