@@ -50,17 +50,17 @@ func Execute() {
 	var command *cobra.Command
 	switch plugin {
 	case "kubectl-list_certs":
-		command = kubectl_list_certs.NewCommand(kubectlplugin.DefaultApiFactory)
+		command = kubectl_list_certs.NewCommand(kubectlplugin.WithDefaultKubeApi())
 	case "kubectl-lookup_address":
-		command = kubectl_lookup_address.NewCommand(kubectlplugin.DefaultApiFactory)
+		command = kubectl_lookup_address.NewCommand(kubectlplugin.WithDefaultKubeApi())
 	case "kubectl-list_unhealthy_pods":
-		command = kubectl_list_unhealthy_pods.NewCommand(kubectlplugin.DefaultApiFactory)
+		command = kubectl_list_unhealthy_pods.NewCommand(kubectlplugin.WithDefaultKubeApi())
 	case "kubectl-trigger_cronjob":
-		command = kubectl_trigger_cronjob.NewCommand(kubectlplugin.DefaultApiFactory)
+		command = kubectl_trigger_cronjob.NewCommand(kubectlplugin.WithDefaultKubeApi())
 	case "kubectl-list_addresses":
-		command = kubectl_list_addresses.NewCommand(kubectlplugin.DefaultApiFactory)
+		command = kubectl_list_addresses.NewCommand(kubectlplugin.WithDefaultKubeApi())
 	case "kubectl-list_finalizers":
-		command = kubectl_list_finalizers.NewCommand(kubectlplugin.DefaultDynamicApiFactory)
+		command = kubectl_list_finalizers.NewCommand(kubectlplugin.WithDefaultDiscoveryApi())
 	default:
 		command = newRootCmd(AppName)
 		command.AddCommand(

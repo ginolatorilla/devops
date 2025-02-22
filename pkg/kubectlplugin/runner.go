@@ -15,6 +15,10 @@ type Runner struct {
 	apiFactory        ApiFactory
 	dynamicApiFactory DynamicApiFactory
 	handler           Handler
+
+	kubeApi      kubernetes.Interface
+	discoveryApi discovery.DiscoveryInterface
+	dynamicApi   dynamic.Interface
 }
 
 type HandlerArgs struct {
@@ -41,6 +45,16 @@ func NewRunner(apiFactory ApiFactory, handler Handler, opts ...RunnerOpts) *Runn
 	return r
 }
 
+func NewRunnerV2(handler Handler, opts ...RunnerOpts) *Runner {
+	r := &Runner{
+		configFlags: NewConfigFlags(),
+		handler:     handler,
+	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
+}
 func (r *Runner) ToCobraCommand(use, short string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          use,
@@ -75,21 +89,10 @@ func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to get effective namespace: %w", err)
 		}
 
-		var kubeApi kubernetes.Interface
-		if r.apiFactory != nil {
-			kubeApi = r.apiFactory(r.configFlags)
-		}
-
-		var discoveryApi discovery.DiscoveryInterface
-		var dynamicApi dynamic.Interface
-		if r.dynamicApiFactory != nil {
-			discoveryApi, dynamicApi = r.dynamicApiFactory(r.configFlags)
-		}
-
 		handlerArgs := HandlerArgs{
-			KubeApi:      kubeApi,
-			DiscoveryApi: discoveryApi,
-			DynamicApi:   dynamicApi,
+			KubeApi:      r.kubeApi,
+			DiscoveryApi: r.discoveryApi,
+			DynamicApi:   r.dynamicApi,
 			Namespace:    namespace,
 			Cmd:          cmd,
 			Args:         args,

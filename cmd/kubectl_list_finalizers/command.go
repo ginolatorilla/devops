@@ -38,9 +38,9 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
-func NewCommand(apiFactory kubectlplugin.DynamicApiFactory) *cobra.Command {
+func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(nil, listResourceUsers, kubectlplugin.WithDiscoveryApi(apiFactory)).
+		NewRunnerV2(listResourceUsers, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",

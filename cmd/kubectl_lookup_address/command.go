@@ -32,9 +32,9 @@ import (
 	gocoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
+func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, lookupAddress, kubectlplugin.WithResourcePrinters()).
+		NewRunnerV2(lookupAddress, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommandWithArgs(
 			"kubectl-lookup_address",
 			"Finds Kubernetes resources by IP address",

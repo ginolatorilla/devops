@@ -32,9 +32,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
+func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, listCerts, kubectlplugin.WithResourcePrinters()).
+		NewRunnerV2(listCerts, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",

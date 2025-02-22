@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
@@ -20,7 +21,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -30,7 +31,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 		setKubeConfigEnv(t, "testdata/ok/kubeConfig.yaml")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		assert.NoError(cmd.Execute())
 	})
 
@@ -39,7 +40,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "default", "test")
 		setKubeConfigEnv(t, "testdata/missing-namespace/kubeConfig.yaml")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		assert.NoError(cmd.Execute())
 	})
 
@@ -47,7 +48,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		kubetesting.LoadCannedError(t, client, "list", "secrets")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		assert.Error(cmd.Execute())
 	})
 
@@ -55,7 +56,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		setKubeConfigEnv(t, "testdata/invalid/kubeConfig.yaml")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		assert.Error(cmd.Execute())
 	})
 
@@ -63,7 +64,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "test", "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})

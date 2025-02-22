@@ -31,9 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
+func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, listUnhealthyPods, kubectlplugin.WithResourcePrinters()).
+		NewRunnerV2(listUnhealthyPods, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",

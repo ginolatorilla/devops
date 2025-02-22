@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
 	"github.com/stretchr/testify/assert"
 	batchV1 "k8s.io/api/batch/v1"
@@ -20,7 +21,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadResources(t, client, "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test", "test-cronjob"})
 		assert.NoError(cmd.Execute())
 	})
@@ -29,7 +30,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadResources(t, client, "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test", "missing-cronjob"})
 		assert.Error(cmd.Execute())
 	})
@@ -39,7 +40,7 @@ func TestNewCommand(t *testing.T) {
 		kubetesting.LoadCannedError(t, client, "create", "jobs")
 		loadResources(t, client, "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test", "test-cronjob"})
 		assert.Error(cmd.Execute())
 	})

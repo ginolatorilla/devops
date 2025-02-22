@@ -31,9 +31,9 @@ import (
 	gocoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
+func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, listAddresses, kubectlplugin.WithResourcePrinters()).
+		NewRunnerV2(listAddresses, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
+	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +22,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadResources(t, client, "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -32,7 +32,7 @@ func TestNewCommand(t *testing.T) {
 		loadCannedError(t, client, "list", "pods")
 		loadResources(t, client, "test")
 
-		cmd := kubetesting.Testable(client, NewCommand)
+		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.Error(cmd.Execute())
 	})

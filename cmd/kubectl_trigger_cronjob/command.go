@@ -29,9 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
+func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(apiFactory, triggerCronJob, kubectlplugin.WithResourcePrinters()).
+		NewRunnerV2(triggerCronJob, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(
 			"kubectl-trigger_cronjob",
 			"Launches a new job from an existing cronjob",
