@@ -33,17 +33,21 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewTabularRunner(apiFactory, listAddresses).
+		NewRunner(apiFactory, listAddresses).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",
 		)
 }
 
-func listAddresses(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
+func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	client := a.KubeApi.CoreV1()
 
 	table := metaV1.Table{
+		TypeMeta: metaV1.TypeMeta{
+			APIVersion: "meta.k8s.io/v1",
+			Kind:       "Table",
+		},
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Kind", Type: "string"},
 			{Name: "Name", Type: "string", Format: "name"},
@@ -64,7 +68,7 @@ func listAddresses(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
 		slog.Warn("failed to list nodes", "error", err)
 	}
 
-	return table, nil
+	return &table, nil
 }
 
 func getServiceAddresses(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, table *metaV1.Table) error {

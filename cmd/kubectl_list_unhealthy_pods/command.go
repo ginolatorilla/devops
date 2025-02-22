@@ -33,18 +33,18 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewTabularRunner(apiFactory, listUnhealthyPods).
+		NewRunner(apiFactory, listUnhealthyPods).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",
 		)
 }
 
-func listUnhealthyPods(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
+func listUnhealthyPods(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	client := a.KubeApi.CoreV1()
 	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
 	if err != nil {
-		return metaV1.Table{}, fmt.Errorf("failed to list pods: %w", err)
+		return nil, fmt.Errorf("failed to list pods: %w", err)
 	}
 	unhealthyPods := filterUnhealthyPods(pods.Items)
 	return podsToTable(unhealthyPods), nil
@@ -81,8 +81,12 @@ func filterUnhealthyPods(pods []coreV1.Pod) []coreV1.Pod {
 	return filtered
 }
 
-func podsToTable(pods []coreV1.Pod) metaV1.Table {
+func podsToTable(pods []coreV1.Pod) runtime.Object {
 	table := metaV1.Table{
+		TypeMeta: metaV1.TypeMeta{
+			APIVersion: "meta.k8s.io/v1",
+			Kind:       "Table",
+		},
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Name", Type: "string", Format: "name"},
 			{Name: "Status", Type: "string"},
@@ -100,5 +104,5 @@ func podsToTable(pods []coreV1.Pod) metaV1.Table {
 			Object: runtime.RawExtension{Object: &pod},
 		}
 	}
-	return table
+	return &table
 }

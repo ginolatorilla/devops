@@ -15,7 +15,6 @@ type Runner struct {
 	apiFactory        ApiFactory
 	dynamicApiFactory DynamicApiFactory
 	handler           Handler
-	tabularHandler    TabularHandler
 }
 
 type HandlerArgs struct {
@@ -35,6 +34,14 @@ func NewRunner(apiFactory ApiFactory, handler Handler) *Runner {
 		configFlags: NewConfigFlagsWithResourcePrinters(),
 		apiFactory:  apiFactory,
 		handler:     handler,
+	}
+}
+
+func NewRunnerWithDiscoveryApi(apiFactory DynamicApiFactory, handler Handler) *Runner {
+	return &Runner{
+		configFlags:       NewConfigFlagsWithResourcePrinters(),
+		dynamicApiFactory: apiFactory,
+		handler:           handler,
 	}
 }
 
@@ -120,27 +127,6 @@ func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		if r.tabularHandler != nil {
-			table, err := r.tabularHandler(handlerArgs)
-			if table.APIVersion == "" {
-				table.APIVersion = "meta.k8s.io/v1"
-			}
-			if table.Kind == "" {
-				table.Kind = "Table"
-			}
-
-			if err != nil {
-				return err
-			}
-
-			printer, err := r.configFlags.ToPrinter()
-			if err != nil {
-				return fmt.Errorf("failed to get printer: %w", err)
-			}
-			if err := printer.PrintObj(&table, cmd.OutOrStdout()); err != nil {
-				return fmt.Errorf("failed to print table: %w", err)
-			}
-		}
 		return nil
 	}
 }

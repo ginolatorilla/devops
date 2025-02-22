@@ -34,7 +34,7 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewTabularRunner(apiFactory, lookupAddress).
+		NewRunner(apiFactory, lookupAddress).
 		ToCobraCommandWithArgs(
 			"kubectl-lookup_address",
 			"Finds Kubernetes resources by IP address",
@@ -43,11 +43,15 @@ func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 		)
 }
 
-func lookupAddress(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
+func lookupAddress(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	ipAddress := a.Args[0]
 	client := a.KubeApi.CoreV1()
 
 	table := metaV1.Table{
+		TypeMeta: metaV1.TypeMeta{
+			APIVersion: "meta.k8s.io/v1",
+			Kind:       "Table",
+		},
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Kind", Type: "string"},
 			{Name: "Name", Type: "string", Format: "name"},
@@ -64,7 +68,7 @@ func lookupAddress(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
 	if err := recordNodesWithMatchingAddress(a, client, ipAddress, &table); err != nil {
 		slog.Warn("failed to list nodes", "error", err)
 	}
-	return table, nil
+	return &table, nil
 }
 
 func recordServicesWithMatchingAddress(a kubectlplugin.HandlerArgs, client gocoreV1.CoreV1Interface, ipAddress string, table *metaV1.Table) error {

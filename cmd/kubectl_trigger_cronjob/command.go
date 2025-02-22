@@ -31,20 +31,16 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewTabularRunner(apiFactory, triggerCronJob).
+		NewRunner(apiFactory, triggerCronJob).
 		ToCobraCommand(
 			"kubectl-trigger_cronjob",
 			"Launches a new job from an existing cronjob",
 		)
 }
 
-func triggerCronJob(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
+func triggerCronJob(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	cronJobName := a.Args[0]
-	job, err := createJobFromCronJob(a, cronJobName)
-	if err != nil {
-		return metaV1.Table{}, err
-	}
-	return jobToTable(job), nil
+	return createJobFromCronJob(a, cronJobName)
 }
 
 func createJobFromCronJob(a kubectlplugin.HandlerArgs, cronJobName string) (*batchV1.Job, error) {
@@ -71,22 +67,4 @@ func createJobFromCronJob(a kubectlplugin.HandlerArgs, cronJobName string) (*bat
 	}
 
 	return job, nil
-}
-
-func jobToTable(job *batchV1.Job) metaV1.Table {
-	return metaV1.Table{
-		ColumnDefinitions: []metaV1.TableColumnDefinition{
-			{Name: "Kind", Type: "string"},
-			{Name: "Name", Type: "string", Format: "name"},
-		},
-		Rows: []metaV1.TableRow{
-			{
-				Cells: []interface{}{
-					"Job",
-					job.GetName(),
-				},
-				Object: runtime.RawExtension{Object: job},
-			},
-		},
-	}
 }

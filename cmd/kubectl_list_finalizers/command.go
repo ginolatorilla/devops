@@ -40,25 +40,29 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.DynamicApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewTabularRunnerWithDiscoveryApi(apiFactory, listResourceUsers).
+		NewRunnerWithDiscoveryApi(apiFactory, listResourceUsers).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",
 		)
 }
 
-func listResourceUsers(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
+func listResourceUsers(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	gvrs, err := getAllGroupVersionResources(a)
 	if err != nil {
-		return metaV1.Table{}, fmt.Errorf("failed to get all group version resources: %w", err)
+		return nil, fmt.Errorf("failed to get all group version resources: %w", err)
 	}
 
 	jq, err := gojq.Parse(".items[] | {kind: .kind, namespace: .metadata.namespace, name: .metadata.name, finalizers: .metadata.finalizers}")
 	if err != nil {
-		return metaV1.Table{}, fmt.Errorf("failed to parse JQ query: %w", err)
+		return nil, fmt.Errorf("failed to parse JQ query: %w", err)
 	}
 
 	table := metaV1.Table{
+		TypeMeta: metaV1.TypeMeta{
+			APIVersion: "meta.k8s.io/v1",
+			Kind:       "Table",
+		},
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Kind", Type: "string"},
 			{Name: "Name", Type: "string", Format: "name"},
@@ -81,7 +85,7 @@ func listResourceUsers(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
 			recordObjectsWithFinalizers(&table, object)
 		})
 	}
-	return table, nil
+	return &table, nil
 }
 
 func getAllGroupVersionResources(a kubectlplugin.HandlerArgs) ([]schema.GroupVersionResource, error) {

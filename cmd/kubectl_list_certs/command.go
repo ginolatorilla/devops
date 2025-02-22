@@ -34,14 +34,14 @@ import (
 
 func NewCommand(apiFactory kubectlplugin.ApiFactory) *cobra.Command {
 	return kubectlplugin.
-		NewTabularRunner(apiFactory, listCerts).
+		NewRunner(apiFactory, listCerts).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",
 		)
 }
 
-func listCerts(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
+func listCerts(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	client := a.KubeApi.CoreV1()
 	secrets, err := client.
 		Secrets(a.Namespace).
@@ -49,13 +49,17 @@ func listCerts(a kubectlplugin.HandlerArgs) (metaV1.Table, error) {
 			FieldSelector: "type=kubernetes.io/tls",
 		})
 	if err != nil {
-		return metaV1.Table{}, fmt.Errorf("failed to list secrets: %w", err)
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
 	}
 	return secretsToTable(secrets.Items), nil
 }
 
-func secretsToTable(secrets []coreV1.Secret) metaV1.Table {
+func secretsToTable(secrets []coreV1.Secret) runtime.Object {
 	table := metaV1.Table{
+		TypeMeta: metaV1.TypeMeta{
+			APIVersion: "meta.k8s.io/v1",
+			Kind:       "Table",
+		},
 		ColumnDefinitions: []metaV1.TableColumnDefinition{
 			{Name: "Name", Type: "string", Format: "name"},
 			{Name: "Key", Type: "string"},
@@ -90,5 +94,5 @@ func secretsToTable(secrets []coreV1.Secret) metaV1.Table {
 			Object: runtime.RawExtension{Object: &secret},
 		}
 	}
-	return table
+	return &table
 }
