@@ -24,15 +24,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/ginolatorilla/devops/cmd/kubectl_list_addresses"
-	"github.com/ginolatorilla/devops/cmd/kubectl_list_certs"
-	"github.com/ginolatorilla/devops/cmd/kubectl_list_finalizers"
-	"github.com/ginolatorilla/devops/cmd/kubectl_list_unhealthy_pods"
-	"github.com/ginolatorilla/devops/cmd/kubectl_lookup_address"
-	"github.com/ginolatorilla/devops/cmd/kubectl_trigger_cronjob"
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -42,33 +34,12 @@ var Version = ""       // Version of the application
 var CommitHash = ""    // Commit hash of the application
 
 func Execute() {
-	plugin := filepath.Base(os.Args[0])
-	if pluginFromEnv := os.Getenv("DEVOPS_BINARY"); pluginFromEnv != "" {
-		plugin = pluginFromEnv
-	}
-
-	var command *cobra.Command
-	switch plugin {
-	case "kubectl-list_certs":
-		command = kubectl_list_certs.NewCommand(kubectlplugin.WithDefaultKubeApi())
-	case "kubectl-lookup_address":
-		command = kubectl_lookup_address.NewCommand(kubectlplugin.WithDefaultKubeApi())
-	case "kubectl-list_unhealthy_pods":
-		command = kubectl_list_unhealthy_pods.NewCommand(kubectlplugin.WithDefaultKubeApi())
-	case "kubectl-trigger_cronjob":
-		command = kubectl_trigger_cronjob.NewCommand(kubectlplugin.WithDefaultKubeApi())
-	case "kubectl-list_addresses":
-		command = kubectl_list_addresses.NewCommand(kubectlplugin.WithDefaultKubeApi())
-	case "kubectl-list_finalizers":
-		command = kubectl_list_finalizers.NewCommand(kubectlplugin.WithDefaultDiscoveryApi())
-	default:
-		command = newRootCmd(AppName)
-		command.AddCommand(
-			newVersionCmd(Version, CommitHash),
-			newTemplateCmd(),
-			newCorsCheck(),
-		)
-	}
+	command := newRootCmd(AppName)
+	command.AddCommand(
+		newVersionCmd(Version, CommitHash),
+		newTemplateCmd(),
+		newCorsCheck(),
+	)
 
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

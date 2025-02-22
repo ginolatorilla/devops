@@ -20,7 +20,7 @@
 package main
 
 import (
-	"github.com/ginolatorilla/devops/cmd"
+	"github.com/ginolatorilla/devops/cmd/devops/cmd"
 )
 
 func main() {

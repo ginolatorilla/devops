@@ -1,4 +1,4 @@
-package kubectl_list_addresses
+package main
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadResources(t, client, "test")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -36,7 +36,7 @@ func TestNewCommand(t *testing.T) {
 				kubetesting.LoadCannedError(t, client, "list", resource)
 				loadResources(t, client, "test")
 
-				cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+				cmd := newCommand(kubectlplugin.WithKubeApi(client))
 				cmd.SetArgs([]string{"-n", "test"})
 				assert.NoError(cmd.Execute())
 			})

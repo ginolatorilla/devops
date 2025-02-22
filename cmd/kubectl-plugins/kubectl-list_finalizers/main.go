@@ -17,7 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-package kubectl_list_finalizers
+package main
 
 import (
 	"context"
@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 
@@ -38,7 +39,14 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
-func NewCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
+func main() {
+	if err := newCommand(kubectlplugin.WithDefaultDiscoveryApi()).Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
 		NewRunner(listResourceUsers, append(runnerOpts, kubectlplugin.WithResourcePrinters())...).
 		ToCobraCommand(

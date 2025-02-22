@@ -1,4 +1,4 @@
-package kubectl_list_certs
+package main
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
@@ -31,7 +31,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
 		setKubeConfigEnv(t, "testdata/ok/kubeConfig.yaml")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		assert.NoError(cmd.Execute())
 	})
 
@@ -40,7 +40,7 @@ func TestNewCommand(t *testing.T) {
 		loadTLSCertsFromPath(t, client, "testdata/ok", "default", "test")
 		setKubeConfigEnv(t, "testdata/missing-namespace/kubeConfig.yaml")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		assert.NoError(cmd.Execute())
 	})
 
@@ -48,7 +48,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		kubetesting.LoadCannedError(t, client, "list", "secrets")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		assert.Error(cmd.Execute())
 	})
 
@@ -56,7 +56,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		setKubeConfigEnv(t, "testdata/invalid/kubeConfig.yaml")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		assert.Error(cmd.Execute())
 	})
 
@@ -64,7 +64,7 @@ func TestNewCommand(t *testing.T) {
 		client := fake.NewClientset()
 		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "test", "test")
 
-		cmd := NewCommand(kubectlplugin.WithKubeApi(client))
+		cmd := newCommand(kubectlplugin.WithKubeApi(client))
 		cmd.SetArgs([]string{"-n", "test"})
 		assert.NoError(cmd.Execute())
 	})
