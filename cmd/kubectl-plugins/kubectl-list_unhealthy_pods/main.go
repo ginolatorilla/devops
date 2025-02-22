@@ -28,8 +28,8 @@ import (
 	"github.com/spf13/cobra"
 
 	coreV1 "k8s.io/api/core/v1"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func main() {
@@ -41,7 +41,11 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listUnhealthyPods, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
+		NewRunner(listUnhealthyPods,
+			append(runnerOpts,
+				kubectlplugin.WithTablePrinter(),
+				kubectlplugin.WithAllNamespaces(),
+			)...).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",
@@ -49,27 +53,34 @@ func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 }
 
 func listUnhealthyPods(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	client := a.KubeApi.CoreV1()
-	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods: %w", err)
+	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
+		kubectlplugin.Column{Name: "Status", Description: "The status of the pod"},
+		kubectlplugin.Column{Name: "Reason", Description: "The reason for the pod's status"},
+	)
+
+	a.ConfigFlags.WithAll(true)
+	if err := a.ToResourceFinder("pods").Do().Visit(getUnhealthyPods(tableBuilder)); err != nil {
+		return nil, fmt.Errorf("failed to list unhealthy pods: %w", err)
 	}
-	unhealthyPods := filterUnhealthyPods(pods.Items)
-	return podsToTable(unhealthyPods), nil
+	return &tableBuilder.Table, nil
 }
 
-func filterUnhealthyPods(pods []coreV1.Pod) []coreV1.Pod {
-	var filtered []coreV1.Pod
-	for _, pod := range pods {
+func getUnhealthyPods(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
+	return func(info *resource.Info, _ error) error {
+		pod := kubectlplugin.As[*coreV1.Pod](info.Object)
 		if pod.Status.Phase == coreV1.PodFailed {
 			for _, cs := range pod.Status.ContainerStatuses {
 				if cs.State.Terminated != nil {
 					pod.Status.Reason = cs.State.Terminated.Reason
 				}
 			}
-			filtered = append(filtered, pod)
-			continue
+			tableBuilder.AddRow(pod, map[string]any{
+				"Status": pod.Status.Phase,
+				"Reason": pod.Status.Reason,
+			})
+			return nil
 		}
+
 		if pod.Status.Phase == coreV1.PodPending {
 			if slices.ContainsFunc(
 				pod.Status.ContainerStatuses,
@@ -81,25 +92,13 @@ func filterUnhealthyPods(pods []coreV1.Pod) []coreV1.Pod {
 					return false
 				},
 			) {
-				filtered = append(filtered, pod)
-				continue
+				tableBuilder.AddRow(pod, map[string]any{
+					"Status": pod.Status.Phase,
+					"Reason": pod.Status.Reason,
+				})
+				return nil
 			}
 		}
+		return nil
 	}
-	return filtered
-}
-
-func podsToTable(pods []coreV1.Pod) runtime.Object {
-	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
-		kubectlplugin.Column{Name: "Status", Description: "The status of the pod"},
-		kubectlplugin.Column{Name: "Reason", Description: "The reason for the pod's status"},
-	)
-
-	for _, pod := range pods {
-		tableBuilder.AddRow(&pod, map[string]any{
-			"Status": pod.Status.Phase,
-			"Reason": pod.Status.Reason,
-		})
-	}
-	return &tableBuilder.Table
 }

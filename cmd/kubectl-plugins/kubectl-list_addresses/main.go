@@ -20,7 +20,6 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 
 	devopscmd "github.com/ginolatorilla/devops/cmd/devops/cmd"
@@ -38,7 +37,11 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listAddresses, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
+		NewRunner(listAddresses,
+			append(runnerOpts,
+				kubectlplugin.WithTablePrinter(),
+				kubectlplugin.WithAllNamespaces(),
+			)...).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",
@@ -72,13 +75,7 @@ func listAddresses(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 
 func getServiceAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
-		if err != nil {
-			return err
-		}
-		service, ok := info.Object.(*coreV1.Service)
-		if !ok {
-			panic(fmt.Errorf("expected service, got %T", info.Object))
-		}
+		service := kubectlplugin.As[*coreV1.Service](info.Object)
 		for _, ip := range service.Spec.ClusterIPs {
 			if ip == "" || ip == "None" {
 				continue
@@ -110,14 +107,8 @@ func getServiceAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.Visi
 }
 
 func getPodAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
-	return func(info *resource.Info, err error) error {
-		if err != nil {
-			return err
-		}
-		pod, ok := info.Object.(*coreV1.Pod)
-		if !ok {
-			panic(fmt.Errorf("expected pod, got %T", info.Object))
-		}
+	return func(info *resource.Info, _ error) error {
+		pod := kubectlplugin.As[*coreV1.Pod](info.Object)
 		for _, ip := range pod.Status.PodIPs {
 			tableBuilder.AddRow(pod, map[string]any{
 				"Kind":    "Pod",
@@ -130,14 +121,8 @@ func getPodAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorF
 }
 
 func getNodeAddresses(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
-	return func(info *resource.Info, err error) error {
-		if err != nil {
-			return err
-		}
-		node, ok := info.Object.(*coreV1.Node)
-		if !ok {
-			panic(fmt.Errorf("expected node, got %T", info.Object))
-		}
+	return func(info *resource.Info, _ error) error {
+		node := kubectlplugin.As[*coreV1.Node](info.Object)
 		for _, address := range node.Status.Addresses {
 			if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
 				continue

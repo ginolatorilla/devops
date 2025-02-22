@@ -29,9 +29,8 @@ import (
 	"github.com/spf13/cobra"
 
 	coreV1 "k8s.io/api/core/v1"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	gocoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func main() {
@@ -43,7 +42,11 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(lookupAddress, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
+		NewRunner(lookupAddress,
+			append(runnerOpts,
+				kubectlplugin.WithTablePrinter(),
+				kubectlplugin.WithAllNamespaces(),
+			)...).
 		ToCobraCommand(
 			"kubectl-lookup_address",
 			"Finds Kubernetes resources by IP address",
@@ -53,87 +56,63 @@ func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 
 func lookupAddress(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	ipAddress := a.Args[0]
-	client := a.KubeApi.CoreV1()
-
-	tableBuilder := kubectlplugin.
-		NewTableBuilder().
+	tableBuilder := kubectlplugin.NewTableBuilder().
 		AdditionalColumns(
 			kubectlplugin.ResourceKindColumn,
 			kubectlplugin.Column{Name: "Type", Description: "The type of address"},
 		)
-
-	if err := recordServicesWithMatchingAddress(a, client, ipAddress, tableBuilder); err != nil {
-		slog.Warn("failed to list services", "error", err)
-	}
-	if err := recordPodsWithMatchingAddress(a, client, ipAddress, tableBuilder); err != nil {
-		slog.Warn("failed to list pods", "error", err)
-	}
-	if err := recordNodesWithMatchingAddress(a, client, ipAddress, tableBuilder); err != nil {
-		slog.Warn("failed to list nodes", "error", err)
+	a.ConfigFlags.WithAll(true)
+	for _, d := range []struct {
+		kind        string
+		visitorFunc resource.VisitorFunc
+	}{
+		{"service", findAddressInService(tableBuilder, ipAddress)},
+		{"pod", findAddressInPod(tableBuilder, ipAddress)},
+		{"node", findAddressInNode(tableBuilder, ipAddress)},
+	} {
+		if err := a.ToResourceFinder(d.kind).Do().Visit(d.visitorFunc); err != nil {
+			slog.Warn("failed to list resources", "kind", d.kind, "error", err)
+		}
 	}
 	return &tableBuilder.Table, nil
 }
 
-func recordServicesWithMatchingAddress(
-	a kubectlplugin.HandlerArgs,
-	client gocoreV1.CoreV1Interface,
-	ipAddress string,
-	tableBuilder *kubectlplugin.TableBuilder,
-) error {
-	services, err := client.Services(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, service := range services.Items {
+func findAddressInService(tableBuilder *kubectlplugin.TableBuilder, ipAddress string) resource.VisitorFunc {
+	return func(info *resource.Info, _ error) error {
+		service := kubectlplugin.As[*coreV1.Service](info.Object)
 		if slices.Contains(service.Spec.ClusterIPs, ipAddress) {
-			tableBuilder.AddRow(&service, map[string]any{"Type": "ClusterIP", "Kind": "Service"})
+			tableBuilder.AddRow(service, map[string]any{"Type": "ClusterIP", "Kind": "Service"})
 		}
 		if slices.Contains(service.Spec.ExternalIPs, ipAddress) {
-			tableBuilder.AddRow(&service, map[string]any{"Type": "ExternalIP", "Kind": "Service"})
+			tableBuilder.AddRow(service, map[string]any{"Type": "ExternalIP", "Kind": "Service"})
 		}
 		if service.Spec.LoadBalancerIP == ipAddress {
-			tableBuilder.AddRow(&service, map[string]any{"Type": "LoadBalancerIP", "Kind": "Service"})
+			tableBuilder.AddRow(service, map[string]any{"Type": "LoadBalancerIP", "Kind": "Service"})
 		}
+		return nil
 	}
-	return nil
 }
 
-func recordPodsWithMatchingAddress(
-	a kubectlplugin.HandlerArgs,
-	client gocoreV1.CoreV1Interface,
-	ipAddress string,
-	tableBuilder *kubectlplugin.TableBuilder,
-) error {
-	pods, err := client.Pods(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, pod := range pods.Items {
+func findAddressInPod(tableBuilder *kubectlplugin.TableBuilder, ipAddress string) resource.VisitorFunc {
+	return func(info *resource.Info, _ error) error {
+		pod := kubectlplugin.As[*coreV1.Pod](info.Object)
 		if slices.ContainsFunc(pod.Status.PodIPs, func(p coreV1.PodIP) bool {
 			return p.IP == ipAddress
 		}) {
-			tableBuilder.AddRow(&pod, map[string]any{"Type": "PodIP", "Kind": "Pod"})
+			tableBuilder.AddRow(pod, map[string]any{"Type": "PodIP", "Kind": "Pod"})
 		}
+		return nil
 	}
-	return nil
 }
 
-func recordNodesWithMatchingAddress(
-	a kubectlplugin.HandlerArgs,
-	client gocoreV1.CoreV1Interface,
-	ipAddress string,
-	tableBuilder *kubectlplugin.TableBuilder,
-) error {
-	nodes, err := client.Nodes().List(a.Cmd.Context(), metaV1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, node := range nodes.Items {
+func findAddressInNode(tableBuilder *kubectlplugin.TableBuilder, ipAddress string) resource.VisitorFunc {
+	return func(info *resource.Info, _ error) error {
+		node := kubectlplugin.As[*coreV1.Node](info.Object)
 		for _, n := range node.Status.Addresses {
 			if n.Address == ipAddress {
-				tableBuilder.AddRow(&node, map[string]any{"Type": n.Type, "Kind": "Node"})
+				tableBuilder.AddRow(node, map[string]any{"Type": n.Type, "Kind": "Node"})
 			}
 		}
+		return nil
 	}
-	return nil
 }

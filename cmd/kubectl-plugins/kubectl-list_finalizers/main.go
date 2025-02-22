@@ -20,23 +20,14 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"log/slog"
 	"os"
-	"slices"
-	"strings"
 
 	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
-	"github.com/itchyny/gojq"
 	"github.com/spf13/cobra"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func main() {
@@ -48,121 +39,44 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listResourceUsers, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
+		NewRunner(findResourcesWithFinalizers, append(runnerOpts,
+			kubectlplugin.WithTablePrinter(),
+			kubectlplugin.WithAllNamespaces(),
+		)...).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",
 		)
 }
 
-func listResourceUsers(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
-	gvrs, err := getAllGroupVersionResources(a)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all group version resources: %w", err)
-	}
-
-	jq, err := gojq.Parse(".items[] | {kind: .kind, namespace: .metadata.namespace, name: .metadata.name, creationTimestamp: .metadata.creationTimestamp, finalizers: .metadata.finalizers}")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JQ query: %w", err)
-	}
-
+func findResourcesWithFinalizers(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	tableBuilder := kubectlplugin.NewTableBuilder().AdditionalColumns(
 		kubectlplugin.ResourceKindColumn,
 		kubectlplugin.Column{Name: "Finalizers", Description: "The finalizers attached to the resource"},
 	)
-
-	for _, gvr := range gvrs {
-		resources, err := a.DynamicApi.Resource(gvr).Namespace(a.Namespace).List(a.Cmd.Context(), metaV1.ListOptions{})
-		if err != nil {
-			if !errors.Is(err, fmt.Errorf("the server could not find the requested resource")) {
-				slog.Warn("failed to list resources", "gvr", gvr, "error", err)
+	apiResourceList, err := a.DiscoveryApi.ServerPreferredResources()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server preferred resources: %w", err)
+	}
+	a.ConfigFlags.WithAll(true).WithScheme(nil)
+	for _, ar := range apiResourceList {
+		for _, r := range ar.APIResources {
+			if err := a.ToResourceFinder(r.Name).Do().Visit(func(i *resource.Info, err error) error {
+				uo := kubectlplugin.As[*unstructured.Unstructured](i.Object)
+				finalizers := uo.GetFinalizers()
+				if len(finalizers) == 0 {
+					return nil
+				}
+				tableBuilder.AddRow(
+					i.Object, map[string]any{
+						"Kind":       r.Kind,
+						"Finalizers": finalizers,
+					})
+				return nil
+			}); err != nil {
+				return nil, fmt.Errorf("failed to find resources with finalizers: %w", err)
 			}
-			continue
 		}
-
-		queryDynamicResource(a.Cmd.Context(), jq, resources, func(rawJson []byte) {
-			var object objectWithFinalizers
-			json.Unmarshal(rawJson, &object)
-			recordObjectsWithFinalizers(object, tableBuilder)
-		})
 	}
 	return &tableBuilder.Table, nil
-}
-
-func getAllGroupVersionResources(a kubectlplugin.HandlerArgs) ([]schema.GroupVersionResource, error) {
-	_, resources, err := a.DiscoveryApi.ServerGroupsAndResources()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server resources: %w", err)
-	}
-	for _, resource := range resources {
-		var filteredApiResources []metaV1.APIResource
-		for _, apiResource := range resource.APIResources {
-			if strings.Contains(apiResource.Name, "/") {
-				continue
-			}
-			if !slices.Contains(apiResource.Verbs, "list") && !slices.Contains(apiResource.Verbs, "get") {
-				continue
-			}
-			filteredApiResources = append(filteredApiResources, apiResource)
-		}
-		resource.APIResources = filteredApiResources
-	}
-	gvrs, err := discovery.GroupVersionResources(resources)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert server API resource lists to group version resources: %w", err)
-	}
-	gvrSlice := make([]schema.GroupVersionResource, len(gvrs))
-	for gvr := range gvrs {
-		gvrSlice = append(gvrSlice, gvr)
-	}
-	return gvrSlice, nil
-}
-
-type jsonSerializable interface {
-	MarshalJSON() ([]byte, error)
-}
-
-func queryDynamicResource(ctx context.Context, jq *gojq.Query, object jsonSerializable, handler func(raw []byte)) {
-	rawJson, _ := object.MarshalJSON()
-	var jsonObject map[string]any
-	json.Unmarshal(rawJson, &jsonObject)
-
-	iter := jq.RunWithContext(ctx, jsonObject)
-	for {
-		typeErased, ok := iter.Next()
-		if !ok {
-			break
-		}
-		rawJson, err := json.Marshal(typeErased)
-		if err != nil {
-			panic(fmt.Errorf("failed to marshal untyped object to JSON: %w", err))
-		}
-		handler(rawJson)
-	}
-}
-
-type objectWithFinalizers struct {
-	Kind              string   `json:"kind"`
-	Name              string   `json:"name"`
-	Namespace         string   `json:"namespace"`
-	CreationTimestamp string   `json:"creationTimestamp"`
-	Finalizers        []string `json:"finalizers"`
-}
-
-func recordObjectsWithFinalizers(object objectWithFinalizers, tableBuilder *kubectlplugin.TableBuilder) {
-	for _, finalizer := range object.Finalizers {
-		tableBuilder.AddRow(
-			&unstructured.Unstructured{
-				Object: map[string]any{
-					"metadata": map[string]any{
-						"namespace":         object.Namespace,
-						"name":              object.Name,
-						"creationTimestamp": object.CreationTimestamp,
-					},
-				},
-			}, map[string]any{
-				"Kind":       object.Kind,
-				"Finalizers": finalizer,
-			})
-	}
 }

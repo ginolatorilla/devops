@@ -43,7 +43,11 @@ func main() {
 
 func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 	return kubectlplugin.
-		NewRunner(listCerts, append(runnerOpts, kubectlplugin.WithTablePrinter())...).
+		NewRunner(listCerts,
+			append(runnerOpts,
+				kubectlplugin.WithTablePrinter(),
+				kubectlplugin.WithAllNamespaces(),
+			)...).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",
@@ -64,14 +68,8 @@ func listCerts(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 }
 
 func secretsToTable(tableBuilder *kubectlplugin.TableBuilder) resource.VisitorFunc {
-	return func(info *resource.Info, err error) error {
-		if err != nil {
-			return err
-		}
-		secret, ok := info.Object.(*coreV1.Secret)
-		if !ok {
-			panic(fmt.Errorf("expected secret, got %T", info.Object))
-		}
+	return func(info *resource.Info, _ error) error {
+		secret := kubectlplugin.As[*coreV1.Secret](info.Object)
 		tlsCertKey := "tls.crt"
 		cert, err := tls.X509KeyPair(secret.Data[tlsCertKey], secret.Data["tls.key"])
 		if err != nil {

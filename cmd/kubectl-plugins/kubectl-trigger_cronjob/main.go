@@ -48,20 +48,15 @@ func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 
 func triggerCronJob(a kubectlplugin.HandlerArgs) (runtime.Object, error) {
 	cronJobName := a.Args[0]
-	return createJobFromCronJob(a, cronJobName)
-}
-
-func createJobFromCronJob(a kubectlplugin.HandlerArgs, cronJobName string) (*batchV1.Job, error) {
 	client := a.KubeApi.BatchV1()
 	cronJob, err := client.
-		CronJobs(a.Namespace).
+		CronJobs(*a.ConfigFlags.Namespace).
 		Get(a.Cmd.Context(), cronJobName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cronjob: %w", err)
 	}
-
 	job, err := client.
-		Jobs(a.Namespace).
+		Jobs(*a.ConfigFlags.Namespace).
 		Create(
 			a.Cmd.Context(),
 			&batchV1.Job{
@@ -73,6 +68,5 @@ func createJobFromCronJob(a kubectlplugin.HandlerArgs, cronJobName string) (*bat
 	if err != nil {
 		return nil, fmt.Errorf("failed to create job: %w", err)
 	}
-
 	return job, nil
 }
