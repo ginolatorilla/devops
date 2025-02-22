@@ -2,6 +2,7 @@ package kubectlplugin
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,12 +38,13 @@ func NewRunner(handler Handler, opts ...RunnerOpts) *Runner {
 	}
 	return r
 }
+
 func (r *Runner) ToCobraCommand(use, short string, opts ...CobraOpts) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          use,
 		Short:        short,
 		SilenceUsage: true,
-		RunE:         r.toRunE(),
+		RunE:         r.cobraRunE(),
 	}
 	for _, opt := range opts {
 		opt(cmd)
@@ -51,40 +53,53 @@ func (r *Runner) ToCobraCommand(use, short string, opts ...CobraOpts) *cobra.Com
 	return cmd
 }
 
-func (r *Runner) toRunE() func(cmd *cobra.Command, args []string) error {
+func (r *Runner) cobraRunE() func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		kubeConfig := r.ConfigFlags.ToRawKubeConfigLoader()
-		namespace, err := r.ConfigFlags.GetEffectiveNamespace(kubeConfig)
+		namespace, err := r.getNamespace()
 		if err != nil {
-			return fmt.Errorf("failed to get effective namespace: %w", err)
+			return err
 		}
 
-		handlerArgs := HandlerArgs{
-			Runner:    *r,
-			Namespace: namespace,
-			Cmd:       cmd,
-			Args:      args,
+		if r.handler == nil {
+			panic("handler cannot be nil")
 		}
 
-		if r.handler != nil {
-			object, err := r.handler(handlerArgs)
-			if err != nil {
-				return err
-			}
-			if object == nil {
-				return nil
-			}
+		return r.runHandlerAndPrint(
+			cmd.OutOrStdout(),
+			HandlerArgs{
+				Runner:    *r,
+				Namespace: namespace,
+				Cmd:       cmd,
+				Args:      args,
+			},
+		)
+	}
+}
 
-			printer, err := r.ConfigFlags.ToPrinter()
-			if err != nil {
-				return fmt.Errorf("failed to get printer: %w", err)
-			}
-			if err := printer.PrintObj(object, cmd.OutOrStdout()); err != nil {
-				return fmt.Errorf("failed to print object: %w", err)
-			}
-			return nil
-		}
+func (r *Runner) getNamespace() (string, error) {
+	kubeConfig := r.ConfigFlags.ToRawKubeConfigLoader()
+	namespace, err := r.ConfigFlags.GetEffectiveNamespace(kubeConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to get effective namespace: %w", err)
+	}
+	return namespace, nil
+}
 
+func (r *Runner) runHandlerAndPrint(out io.Writer, args HandlerArgs) error {
+	object, err := r.handler(args)
+	if err != nil {
+		return err
+	}
+	if object == nil {
 		return nil
 	}
+
+	printer, err := r.ConfigFlags.ToPrinter()
+	if err != nil {
+		return fmt.Errorf("failed to get printer: %w", err)
+	}
+	if err := printer.PrintObj(object, out); err != nil {
+		return fmt.Errorf("failed to print object: %w", err)
+	}
+	return nil
 }
