@@ -37,28 +37,16 @@ func NewRunner(handler Handler, opts ...RunnerOpts) *Runner {
 	}
 	return r
 }
-func (r *Runner) ToCobraCommand(use, short string) *cobra.Command {
+func (r *Runner) ToCobraCommand(use, short string, opts ...CobraOpts) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          use,
 		Short:        short,
 		SilenceUsage: true,
 		RunE:         r.toRunE(),
 	}
-
-	r.ConfigFlags.AddFlags(cmd)
-	return cmd
-}
-
-func (r *Runner) ToCobraCommandWithArgs(use, short string, args cobra.PositionalArgs, validArgs []string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          use,
-		Args:         args,
-		ValidArgs:    validArgs,
-		Short:        short,
-		SilenceUsage: true,
-		RunE:         r.toRunE(),
+	for _, opt := range opts {
+		opt(cmd)
 	}
-
 	r.ConfigFlags.AddFlags(cmd)
 	return cmd
 }
