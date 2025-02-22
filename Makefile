@@ -1,5 +1,5 @@
 APP=devops
-VERSION=1.0.0
+VERSION=1.0.1
 GITHUB_OWNER=ginolatorilla
 GITHUB_DOMAIN=github.com
 
@@ -7,7 +7,7 @@ COMMIT_HASH=$(shell git rev-parse HEAD)
 PACKAGE=$(GITHUB_DOMAIN)/$(GITHUB_OWNER)/$(APP)
 
 BUILD_FLAGS=-v -buildvcs
-LD_FLAGS_COMMON=-X '$(PACKAGE)/cmd.AppName=$(APP)' -X '$(PACKAGE)/cmd.Version=$(VERSION)' -X '$(PACKAGE)/cmd.CommitHash=$(COMMIT_HASH)'
+LD_FLAGS_COMMON=-X '$(PACKAGE)/cmd/devops/cmd.AppName=$(APP)' -X '$(PACKAGE)/cmd/devops/cmd.Version=$(VERSION)' -X '$(PACKAGE)/cmd/devops/cmd.CommitHash=$(COMMIT_HASH)'
 LD_FLAGS=-ldflags="$(LD_FLAGS_COMMON)"
 LD_FLAGS_RELEASE=-ldflags="-s -w $(LD_FLAGS_COMMON)"
 TEST_REGEX=".*"
@@ -36,8 +36,7 @@ tidy:
 .PHONY: build
 build:
 	@echo "🏗️  Building devops-cli..."
-	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/devops-cli
-	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/kubectl-plugins/...
+	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/...
 
 .PHONY: install
 install: test

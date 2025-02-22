@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 
+	devopscmd "github.com/ginolatorilla/devops/cmd/devops/cmd"
 	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
 
@@ -46,6 +47,7 @@ func newCommand(runnerOpts ...kubectlplugin.RunnerOpts) *cobra.Command {
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",
+			kubectlplugin.WithVersion(devopscmd.Version+"-"+devopscmd.CommitHash),
 		)
 }
 
