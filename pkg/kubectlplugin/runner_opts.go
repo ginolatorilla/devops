@@ -60,3 +60,9 @@ func WithDefaultDiscoveryApi() RunnerOpts {
 		r.DynamicApi = dynamic.NewForConfigOrDie(config)
 	}
 }
+
+func WithAllNamespaces() RunnerOpts {
+	return func(r *Runner) {
+		r.ConfigFlags.ResourceBuilderFlags.WithAllNamespaces(false)
+	}
+}

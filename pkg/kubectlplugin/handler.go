@@ -8,9 +8,8 @@ import (
 
 type HandlerArgs struct {
 	Runner
-	Namespace string
-	Cmd       *cobra.Command
-	Args      []string
+	Cmd  *cobra.Command
+	Args []string
 }
 
 type Handler func(args HandlerArgs) (runtime.Object, error)

@@ -45,11 +45,6 @@ func (r *Runner) ToCobraCommand(use, short string, opts ...CobraOpts) *cobra.Com
 
 func (r *Runner) cobraRunE() func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		namespace, err := r.getNamespace()
-		if err != nil {
-			return err
-		}
-
 		if r.handler == nil {
 			panic("handler cannot be nil")
 		}
@@ -57,22 +52,12 @@ func (r *Runner) cobraRunE() func(cmd *cobra.Command, args []string) error {
 		return r.runHandlerAndPrint(
 			cmd.OutOrStdout(),
 			HandlerArgs{
-				Runner:    *r,
-				Namespace: namespace,
-				Cmd:       cmd,
-				Args:      args,
+				Runner: *r,
+				Cmd:    cmd,
+				Args:   args,
 			},
 		)
 	}
-}
-
-func (r *Runner) getNamespace() (string, error) {
-	kubeConfig := r.ConfigFlags.ToRawKubeConfigLoader()
-	namespace, err := r.ConfigFlags.GetEffectiveNamespace(kubeConfig)
-	if err != nil {
-		return "", fmt.Errorf("failed to get effective namespace: %w", err)
-	}
-	return namespace, nil
 }
 
 func (r *Runner) runHandlerAndPrint(out io.Writer, args HandlerArgs) error {
