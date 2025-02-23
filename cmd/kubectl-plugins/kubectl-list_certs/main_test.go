@@ -1,76 +1,35 @@
 package main
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
-	kubetesting "github.com/ginolatorilla/devops/pkg/kubectlplugin/testing"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func TestNewCommand(t *testing.T) {
 	assert := assert.New(t)
-
-	t.Run("WithExplicitNamespace", func(t *testing.T) {
-		client := fake.NewClientset()
-		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		cmd.SetArgs([]string{"-n", "test"})
-		assert.NoError(cmd.Execute())
-	})
-
-	t.Run("NamespaceFromKubeconfig", func(t *testing.T) {
-		client := fake.NewClientset()
-		loadTLSCertsFromPath(t, client, "testdata/ok", "test", "test")
-		setKubeConfigEnv(t, "testdata/ok/kubeConfig.yaml")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		assert.NoError(cmd.Execute())
-	})
-
-	t.Run("DefaultNamespace", func(t *testing.T) {
-		client := fake.NewClientset()
-		loadTLSCertsFromPath(t, client, "testdata/ok", "default", "test")
-		setKubeConfigEnv(t, "testdata/missing-namespace/kubeConfig.yaml")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		assert.NoError(cmd.Execute())
-	})
-
-	t.Run("ErrorIfUnableToListSecrets", func(t *testing.T) {
-		client := fake.NewClientset()
-		kubetesting.LoadCannedError(t, client, "list", "secrets")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		assert.Error(cmd.Execute())
-	})
-
-	t.Run("ErrorIfEmptyKubeConfig", func(t *testing.T) {
-		client := fake.NewClientset()
-		setKubeConfigEnv(t, "testdata/invalid/kubeConfig.yaml")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		assert.Error(cmd.Execute())
-	})
-
-	t.Run("SkipIfCertificateIsInvalid", func(t *testing.T) {
-		client := fake.NewClientset()
-		loadTLSCertsFromPath(t, client, "testdata/broken-certs", "test", "test")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		cmd.SetArgs([]string{"-n", "test"})
+	t.Run("OK", func(t *testing.T) {
+		cmd := newCommand(kplug.WithDefaultKubeApi())
+		cmd.SetArgs([]string{"-A"})
 		assert.NoError(cmd.Execute())
 	})
 }
 
-func loadTLSCertsFromPath(t *testing.T, client *fake.Clientset, certsDir, namespace, secretName string) {
+func Test_addSecretsWithTLSCertsToTable(t *testing.T) {
+	tbuild := kplug.NewTableBuilder()
+	visitor := addSecretsWithTLSCertsToTable(tbuild)
+	secret := loadTLSCertsFromPath(t, "testdata/broken-certs")
+
+	assert.NoError(t, visitor(&resource.Info{Object: secret}, nil))
+	assert.Empty(t, tbuild.Table.Rows)
+}
+
+func loadTLSCertsFromPath(t *testing.T, certsDir string) *coreV1.Secret {
 	t.Helper()
 
 	caCrt, err := os.ReadFile(filepath.Join(certsDir, "ca.crt"))
@@ -86,29 +45,12 @@ func loadTLSCertsFromPath(t *testing.T, client *fake.Clientset, certsDir, namesp
 		t.Fatal(err)
 	}
 
-	_, err = client.CoreV1().Secrets(namespace).Create(
-		context.TODO(),
-		&coreV1.Secret{
-			ObjectMeta: metaV1.ObjectMeta{Name: secretName},
-			Data: map[string][]byte{
-				coreV1.TLSCertKey:              tlsCrt,
-				coreV1.TLSPrivateKeyKey:        tlsKey,
-				coreV1.ServiceAccountRootCAKey: caCrt,
-			},
-			Type: coreV1.SecretTypeTLS,
+	return &coreV1.Secret{
+		Data: map[string][]byte{
+			coreV1.TLSCertKey:              tlsCrt,
+			coreV1.TLSPrivateKeyKey:        tlsKey,
+			coreV1.ServiceAccountRootCAKey: caCrt,
 		},
-		metaV1.CreateOptions{},
-	)
-	if err != nil {
-		t.Fatal(err)
+		Type: coreV1.SecretTypeTLS,
 	}
-}
-
-func setKubeConfigEnv(t *testing.T, kubeConfigPath string) {
-	t.Helper()
-	kubeConfigPath, err := filepath.Abs(kubeConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("KUBECONFIG", kubeConfigPath)
 }

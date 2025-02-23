@@ -68,14 +68,14 @@ func listFinalizers(a kplug.HandlerArgs) (runtime.Object, error) {
 	return &tbuild.Table, nil
 }
 
-func addResourceWithFinalizerToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+func addResourceWithFinalizerToTable(tbuild *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
 		uo := kplug.As[*unstructured.Unstructured](info.Object)
 		finalizers := uo.GetFinalizers()
 		if len(finalizers) == 0 {
 			return nil
 		}
-		tableBuilder.AddRow(
+		tbuild.AddRow(
 			info.Object, map[string]any{
 				"Kind":       uo.GetKind(),
 				"Finalizers": finalizers,

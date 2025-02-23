@@ -35,9 +35,9 @@ func main() {
 	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
-	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
-	return kplug.NewRunner(listUnhealthyPods, runnerOpts...).
+func newCommand(opts ...kplug.RunnerOpts) *cobra.Command {
+	opts = append(opts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(listUnhealthyPods, opts...).
 		ToCobraCommand(
 			"kubectl-list_unhealthy_pods",
 			"Finds Kubernetes pods that are in a failed or unknown state",
@@ -45,27 +45,37 @@ func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
 }
 
 func listUnhealthyPods(a kplug.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
+	tbuild := kplug.NewTableBuilder().AdditionalColumns(
 		kplug.Column{Name: "Status", Description: "The status of the pod"},
 		kplug.Column{Name: "Reason", Description: "The reason for the pod's status"},
 	)
 	a.ConfigFlags.WithAll(true)
-	if err := a.ToResourceFinder("pods").Do().Visit(getUnhealthyPods(tableBuilder)); err != nil {
+	err := a.ToResourceFinder("pods").
+		Do().
+		Visit(addUnhealthyPodsToTable(tbuild))
+	if err != nil {
 		return nil, fmt.Errorf("failed to list unhealthy pods: %w", err)
 	}
-	return &tableBuilder.Table, nil
+	return &tbuild.Table, nil
 }
 
-func getUnhealthyPods(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+func addUnhealthyPodsToTable(tbuild *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
 		pod := kplug.As[*coreV1.Pod](info.Object)
+		if pod.Status.Phase == coreV1.PodUnknown {
+			tbuild.AddRow(pod, map[string]any{
+				"Status": pod.Status.Phase,
+				"Reason": pod.Status.Reason,
+			})
+			return nil
+		}
 		if pod.Status.Phase == coreV1.PodFailed {
 			for _, cs := range pod.Status.ContainerStatuses {
 				if cs.State.Terminated != nil {
 					pod.Status.Reason = cs.State.Terminated.Reason
 				}
 			}
-			tableBuilder.AddRow(pod, map[string]any{
+			tbuild.AddRow(pod, map[string]any{
 				"Status": pod.Status.Phase,
 				"Reason": pod.Status.Reason,
 			})
@@ -83,7 +93,7 @@ func getUnhealthyPods(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 					return false
 				},
 			) {
-				tableBuilder.AddRow(pod, map[string]any{
+				tbuild.AddRow(pod, map[string]any{
 					"Status": pod.Status.Phase,
 					"Reason": pod.Status.Reason,
 				})

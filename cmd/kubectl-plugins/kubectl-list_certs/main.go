@@ -36,9 +36,9 @@ func main() {
 	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
-	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
-	return kplug.NewRunner(listCerts, runnerOpts...).
+func newCommand(opts ...kplug.RunnerOpts) *cobra.Command {
+	opts = append(opts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(listCerts, opts...).
 		ToCobraCommand(
 			"kubectl-list_certs",
 			"Lists all certificates in the cluster and shows when they will be effective and when they will expire",
@@ -46,7 +46,7 @@ func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
 }
 
 func listCerts(a kplug.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
+	tbuild := kplug.NewTableBuilder().AdditionalColumns(
 		kplug.Column{Name: "Key", Description: "The key of the certificate in the secret"},
 		kplug.Column{Name: "Not_Before", Description: "The date and time when the certificate will be effective"},
 		kplug.Column{Name: "Effective", Description: "How long until the certificate becomes effective"},
@@ -54,11 +54,11 @@ func listCerts(a kplug.HandlerArgs) (runtime.Object, error) {
 		kplug.Column{Name: "Expires", Description: "How long until the certificate expires"},
 	)
 	a.ConfigFlags.WithAll(true).WithFieldSelector("type=kubernetes.io/tls")
-	a.ToResourceFinder("secrets").Do().Visit(secretsToTable(tableBuilder))
-	return &tableBuilder.Table, nil
+	a.ToResourceFinder("secrets").Do().Visit(addSecretsWithTLSCertsToTable(tbuild))
+	return &tbuild.Table, nil
 }
 
-func secretsToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+func addSecretsWithTLSCertsToTable(tbuild *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
 		secret := kplug.As[*coreV1.Secret](info.Object)
 		tlsCertKey := "tls.crt"
@@ -72,7 +72,7 @@ func secretsToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 				"error", err)
 			return nil
 		}
-		tableBuilder.AddRow(secret, map[string]interface{}{
+		tbuild.AddRow(secret, map[string]interface{}{
 			"Key":        tlsCertKey,
 			"Not_Before": cert.Leaf.NotBefore,
 			"Effective":  humanize.Time(cert.Leaf.NotBefore),

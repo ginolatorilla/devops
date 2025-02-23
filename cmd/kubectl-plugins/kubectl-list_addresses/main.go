@@ -35,9 +35,9 @@ func main() {
 	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
-	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
-	return kplug.NewRunner(listAddresses, runnerOpts...).
+func newCommand(opts ...kplug.RunnerOpts) *cobra.Command {
+	opts = append(opts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
+	return kplug.NewRunner(listAddresses, opts...).
 		ToCobraCommand(
 			"kubectl-list_addresses",
 			"Lists all IP addresses in the cluster",
@@ -46,30 +46,32 @@ func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
 }
 
 func listAddresses(a kplug.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
-		kplug.ResourceKindColumn,
-		kplug.Column{Name: "Type", Description: "The type of address"},
-		kplug.Column{Name: "Address", Description: "The IP address"},
-	)
-
+	tbuild := kplug.NewTableBuilder().
+		AdditionalColumns(
+			kplug.ResourceKindColumn,
+			kplug.Column{Name: "Type", Description: "The type of address"},
+			kplug.Column{Name: "Address", Description: "The IP address"},
+		)
 	a.ConfigFlags.WithAll(true)
 	for _, d := range []struct {
 		kind        string
 		visitorFunc resource.VisitorFunc
 	}{
-		{"service", getServiceAddresses(tableBuilder)},
-		{"pod", getPodAddresses(tableBuilder)},
-		{"node", getNodeAddresses(tableBuilder)},
+		{"service", addServicesToTable(tbuild)},
+		{"pod", addPodsToTable(tbuild)},
+		{"node", addNodesToTable(tbuild)},
 	} {
-		if err := a.ToResourceFinder(d.kind).Do().Visit(d.visitorFunc); err != nil {
+		err := a.ToResourceFinder(d.kind).
+			Do().
+			Visit(d.visitorFunc)
+		if err != nil {
 			slog.Warn("failed to list resources", "kind", d.kind, "error", err)
 		}
 	}
-
-	return &tableBuilder.Table, nil
+	return &tbuild.Table, nil
 }
 
-func getServiceAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+func addServicesToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, err error) error {
 		service := kplug.As[*coreV1.Service](info.Object)
 		for _, ip := range service.Spec.ClusterIPs {
@@ -82,7 +84,6 @@ func getServiceAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc 
 				"Address": ip,
 			})
 		}
-
 		for _, ip := range service.Spec.ExternalIPs {
 			tableBuilder.AddRow(service, map[string]any{
 				"Kind":    "Service",
@@ -90,7 +91,6 @@ func getServiceAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc 
 				"Address": ip,
 			})
 		}
-
 		if service.Spec.LoadBalancerIP != "" {
 			tableBuilder.AddRow(service, map[string]any{
 				"Kind":    "Service",
@@ -102,11 +102,11 @@ func getServiceAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc 
 	}
 }
 
-func getPodAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+func addPodsToTable(tbuild *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
 		pod := kplug.As[*coreV1.Pod](info.Object)
 		for _, ip := range pod.Status.PodIPs {
-			tableBuilder.AddRow(pod, map[string]any{
+			tbuild.AddRow(pod, map[string]any{
 				"Kind":    "Pod",
 				"Type":    "PodIP",
 				"Address": ip.IP,
@@ -116,11 +116,12 @@ func getPodAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	}
 }
 
-func getNodeAddresses(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+func addNodesToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
 	return func(info *resource.Info, _ error) error {
 		node := kplug.As[*coreV1.Node](info.Object)
 		for _, address := range node.Status.Addresses {
-			if address.Type != coreV1.NodeInternalIP && address.Type != coreV1.NodeExternalIP {
+			if address.Type != coreV1.NodeInternalIP &&
+				address.Type != coreV1.NodeExternalIP {
 				continue
 			}
 			tableBuilder.AddRow(node, map[string]any{

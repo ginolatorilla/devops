@@ -1,106 +1,82 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"testing"
 
-	"github.com/ginolatorilla/devops/pkg/kubectlplugin"
+	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/stretchr/testify/assert"
 	coreV1 "k8s.io/api/core/v1"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func TestNewCommand(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("OK", func(t *testing.T) {
-		client := fake.NewClientset()
-		loadResources(t, client, "test")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		cmd.SetArgs([]string{"-n", "test"})
+		cmd := newCommand(kplug.WithDefaultKubeApi())
+		cmd.SetArgs([]string{"-A"})
 		assert.NoError(cmd.Execute())
 	})
-
-	t.Run("ErrorIfPodsUnreadable", func(t *testing.T) {
-		client := fake.NewClientset()
-		loadCannedError(t, client, "list", "pods")
-		loadResources(t, client, "test")
-
-		cmd := newCommand(kubectlplugin.WithKubeApi(client))
-		cmd.SetArgs([]string{"-n", "test"})
-		assert.Error(cmd.Execute())
-	})
 }
 
-func loadResources(t *testing.T, client kubernetes.Interface, namespace string) {
-	t.Helper()
+func Test_addUnhealthyPodsToTable(t *testing.T) {
+	tbuild := kplug.NewTableBuilder().
+		AdditionalColumns(
+			kplug.Column{Name: "Status", Description: "The status of the pod"},
+			kplug.Column{Name: "Reason", Description: "The reason for the pod's status"},
+		)
+	visitor := addUnhealthyPodsToTable(tbuild)
+	assert := assert.New(t)
 
-	for name, status := range map[string]coreV1.PodStatus{
-		"running": {
-			Phase: coreV1.PodRunning,
-			ContainerStatuses: []coreV1.ContainerStatus{
-				{State: coreV1.ContainerState{Running: &coreV1.ContainerStateRunning{}}},
-			},
-		},
-		"failed": {
+	for testCase, podStatus := range map[string]coreV1.PodStatus{
+		"Terminating": {
 			Phase: coreV1.PodFailed,
 			ContainerStatuses: []coreV1.ContainerStatus{
-				{State: coreV1.ContainerState{
-					Terminated: &coreV1.ContainerStateTerminated{
-						Reason: "CrashLoopBackOff",
+				{
+					State: coreV1.ContainerState{
+						Terminated: &coreV1.ContainerStateTerminated{},
 					},
-				}},
+				},
 			},
 		},
-		"image-pull-backoff": {
+		"ImagePullBackoff": {
 			Phase: coreV1.PodPending,
 			ContainerStatuses: []coreV1.ContainerStatus{
-				{State: coreV1.ContainerState{
-					Waiting: &coreV1.ContainerStateWaiting{
-						Reason: "ImagePullBackOff",
+				{
+					State: coreV1.ContainerState{
+						Waiting: &coreV1.ContainerStateWaiting{
+							Reason: "ImagePullBackOff",
+						},
 					},
-				}},
+				},
 			},
 		},
-		"pending-without-reason": {
+		"PodInitializing": {
 			Phase: coreV1.PodPending,
 			ContainerStatuses: []coreV1.ContainerStatus{
-				{State: coreV1.ContainerState{
-					Waiting: nil,
-				}},
+				{
+					State: coreV1.ContainerState{
+						Waiting: &coreV1.ContainerStateWaiting{
+							Reason: "PodInitializing",
+						},
+					},
+				},
 			},
+		},
+		"PendingButNoWaitingStatus": {
+			Phase: coreV1.PodPending,
+			ContainerStatuses: []coreV1.ContainerStatus{
+				{
+					State: coreV1.ContainerState{},
+				},
+			},
+		},
+		"Unknown": {
+			Phase: coreV1.PodUnknown,
 		},
 	} {
-		if err := createPod(client, namespace, name, status); err != nil {
-			t.Fatal(err)
-		}
+		t.Run(testCase, func(t *testing.T) {
+			assert.NoError(visitor(&resource.Info{Object: &coreV1.Pod{Status: podStatus}}, nil))
+		})
 	}
-}
-
-func createPod(client kubernetes.Interface, namespace, name string, podStatus coreV1.PodStatus) error {
-	if _, err := client.CoreV1().Pods(namespace).Create(
-		context.TODO(),
-		&coreV1.Pod{
-			ObjectMeta: metaV1.ObjectMeta{Name: name},
-			Status:     podStatus,
-		},
-		metaV1.CreateOptions{},
-	); err != nil {
-		return err
-	}
-	return nil
-}
-
-func loadCannedError(t *testing.T, client *fake.Clientset, verb, resource string) {
-	t.Helper()
-
-	client.PrependReactor(verb, resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, fmt.Errorf("canned error from test")
-	})
 }

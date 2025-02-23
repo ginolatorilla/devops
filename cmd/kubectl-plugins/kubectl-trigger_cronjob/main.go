@@ -33,10 +33,10 @@ func main() {
 	newCommand(kplug.WithDefaultKubeApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
-	runnerOpts = append(runnerOpts, kplug.WithResourcePrinters())
+func newCommand(opts ...kplug.RunnerOpts) *cobra.Command {
+	opts = append(opts, kplug.WithResourcePrinters())
 	return kplug.
-		NewRunner(triggerCronJob, runnerOpts...).
+		NewRunner(triggerCronJob, opts...).
 		ToCobraCommand(
 			"kubectl-trigger_cronjob",
 			"Launches a new job from an existing cronjob",
