@@ -1,35 +1,33 @@
 package kubectlplugin
 
 import (
-	"github.com/spf13/pflag"
-	coreV1 "k8s.io/api/core/v1"
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 type ConfigFlags struct {
 	genericclioptions.ConfigFlags
-	AllNamespaces bool
-	NoHeaders     bool
+	genericclioptions.PrintFlags
+	genericclioptions.ResourceBuilderFlags
+	NoHeaders bool
 }
 
 func NewConfigFlags() *ConfigFlags {
+	rbf := &genericclioptions.ResourceBuilderFlags{}
+	rbf.WithScheme(scheme.Scheme)
 	return &ConfigFlags{
-		ConfigFlags: *genericclioptions.NewConfigFlags(true),
+		ConfigFlags:          *genericclioptions.NewConfigFlags(true),
+		ResourceBuilderFlags: *rbf,
 	}
 }
 
-func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
+func (f *ConfigFlags) AddFlags(cmd *cobra.Command) {
+	flags := cmd.Flags()
 	f.ConfigFlags.AddFlags(flags)
-	flags.BoolVarP(
-		&f.AllNamespaces,
-		"all-namespaces",
-		"A",
-		false,
-		"If present, list the requested object(s) across all namespaces. "+
-			"Namespace in current context is ignored even if specified with --namespace.",
-	)
+	f.PrintFlags.AddFlags(cmd)
+	f.ResourceBuilderFlags.AddFlags(flags)
 	flags.BoolVar(
 		&f.NoHeaders,
 		"no-headers",
@@ -38,32 +36,18 @@ func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
 	)
 }
 
-func (f *ConfigFlags) GetEffectiveNamespace(kubeConfig clientcmd.ClientConfig) (string, error) {
-	if f.AllNamespaces {
-		return coreV1.NamespaceAll, nil
+func (f *ConfigFlags) ToPrinter() (printers.ResourcePrinter, error) {
+	var outputFormat string
+	if f.OutputFormat != nil {
+		outputFormat = *f.OutputFormat
 	}
 
-	var namespace string
-	if f.Namespace == nil {
-		namespace = ""
-	} else {
-		namespace = *f.Namespace
+	if outputFormat == "" {
+		tablePrinter := printers.NewTablePrinter(printers.PrintOptions{
+			NoHeaders:     f.NoHeaders,
+			WithNamespace: f.AllNamespaces != nil && *f.AllNamespaces,
+		})
+		return f.TypeSetterPrinter.ToPrinter(tablePrinter), nil
 	}
-
-	if namespace == "" {
-		var err error
-		namespace, _, err = kubeConfig.Namespace()
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return namespace, nil
-}
-
-func (f *ConfigFlags) GetTablePrinter() printers.ResourcePrinter {
-	return printers.NewTablePrinter(printers.PrintOptions{
-		WithNamespace: f.AllNamespaces,
-		NoHeaders:     f.NoHeaders,
-	})
+	return f.PrintFlags.ToPrinter()
 }

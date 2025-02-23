@@ -1,6 +1,4 @@
-// package testing contains helpers for testing kubectl plugins built with kubectlplugin.
-//
-// # Copyright © 2025 Gino Latorilla
+// Copyright © 2025 Gino Latorilla
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,21 +17,51 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-package testing
+package cmd
 
 import (
-	"fmt"
-	gotesting "testing"
+	"io"
+	"text/template"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
+	"github.com/Masterminds/sprig/v3"
+	"github.com/dustin/go-humanize"
+	"github.com/spf13/cobra"
 )
 
-func LoadCannedError(t *gotesting.T, client *fake.Clientset, verb, resource string) {
-	t.Helper()
+var funcMap = template.FuncMap{
+	"relativeTime": humanize.Time,
+}
 
-	client.PrependReactor(verb, resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, fmt.Errorf("canned error from test")
-	})
+func newTemplateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "template",
+		Short: "Render a template",
+		Long: `template reads a Go template from stdin and renders it to stdout.
+
+The following functions are available in the template:
+- Sprig functions (see http://masterminds.github.io/sprig/)
+- relativeTime: Convert a time.Time to a human-readable relative time`,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return render(cmd.InOrStdin(), cmd.OutOrStdout())
+		},
+	}
+	return cmd
+}
+
+func render(stdin io.Reader, stdout io.Writer) error {
+	tpl, err := template.
+		New("stdin").
+		Funcs(sprig.FuncMap()).
+		Funcs(funcMap).
+		Parse(
+			string(_must(io.ReadAll(stdin))),
+		)
+	if err != nil {
+		return err
+	}
+	if err := tpl.Execute(stdout, nil); err != nil {
+		return err
+	}
+	return nil
 }

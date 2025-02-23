@@ -1,6 +1,4 @@
-// package testing contains helpers for testing kubectl plugins built with kubectlplugin.
-//
-// # Copyright © 2025 Gino Latorilla
+// Copyright © 2025 Gino Latorilla
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,21 +17,12 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-package testing
+package main
 
 import (
-	"fmt"
-	gotesting "testing"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
+	"github.com/ginolatorilla/devops/cmd/devops/cmd"
 )
 
-func LoadCannedError(t *gotesting.T, client *fake.Clientset, verb, resource string) {
-	t.Helper()
-
-	client.PrependReactor(verb, resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
-		return true, nil, fmt.Errorf("canned error from test")
-	})
+func main() {
+	cmd.Execute()
 }

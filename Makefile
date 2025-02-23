@@ -1,5 +1,5 @@
 APP=devops
-VERSION=1.0.0
+VERSION=1.0.1
 GITHUB_OWNER=ginolatorilla
 GITHUB_DOMAIN=github.com
 
@@ -7,7 +7,7 @@ COMMIT_HASH=$(shell git rev-parse HEAD)
 PACKAGE=$(GITHUB_DOMAIN)/$(GITHUB_OWNER)/$(APP)
 
 BUILD_FLAGS=-v -buildvcs
-LD_FLAGS_COMMON=-X '$(PACKAGE)/cmd.AppName=$(APP)' -X '$(PACKAGE)/cmd.Version=$(VERSION)' -X '$(PACKAGE)/cmd.CommitHash=$(COMMIT_HASH)'
+LD_FLAGS_COMMON=-X '$(PACKAGE)/cmd/devops/cmd.AppName=$(APP)' -X '$(PACKAGE)/cmd/devops/cmd.Version=$(VERSION)' -X '$(PACKAGE)/cmd/devops/cmd.CommitHash=$(COMMIT_HASH)'
 LD_FLAGS=-ldflags="$(LD_FLAGS_COMMON)"
 LD_FLAGS_RELEASE=-ldflags="-s -w $(LD_FLAGS_COMMON)"
 TEST_REGEX=".*"
@@ -35,40 +35,35 @@ tidy:
 
 .PHONY: build
 build:
-	@echo "🏗️  Building the application..."
-	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/$(APP) $(PACKAGE)
+	@echo "🏗️  Building devops-cli..."
+	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/...
 
 .PHONY: install
 install: test
-	go install $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) $(PACKAGE)
+	go install $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) $(PACKAGE)/cmd/...
 	mkdir -p $(PREFIX)/bin
 	install scripts/* $(PREFIX)/bin
-	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_certs
-	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-lookup_address
-	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_unhealthy_pods
-	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-trigger_cronjob
-	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_addresses
-	ln -sf $(shell go env GOPATH)/bin/$(APP) $(PREFIX)/bin/kubectl-list_finalizers
 
 .PHONY: release
 release: clean
-	@$(MAKE) release-target GOOS=darwin GOARCH=arm64
-	@$(MAKE) release-target GOOS=darwin GOARCH=amd64
-	@$(MAKE) release-target GOOS=linux GOARCH=arm64
-	@$(MAKE) release-target GOOS=linux GOARCH=amd64
-	@$(MAKE) release-target GOOS=windows GOARCH=arm64
-	@$(MAKE) release-target GOOS=windows GOARCH=amd64
+	@for os in darwin linux windows; do \
+		for arch in amd64 arm64; do \
+			$(MAKE) release-target GOOS=$$os GOARCH=$$arch; \
+		done; \
+	done
 
 .PHONY: release-target
 release-target:
 	@echo "🚀 Building release for $$GOOS/$$GOARCH..."
-	@GOOS=$$GOOS GOARCH=$$GOARCH go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/$(APP) $(PACKAGE)
-	@cp README.md LICENSE bin/
-	@tar -czvf bin/$(APP)-$(VERSION)-$$GOOS-$$GOARCH.tar.gz -C bin $(APP) README.md LICENSE
-	@sha256sum bin/$(APP)-$(VERSION)-$$GOOS-$$GOARCH.tar.gz > bin/checksum-$(APP)-$(VERSION)-$$GOOS-$$GOARCH.sha256.txt
-	@echo "👍 Release artifacts created: "
+	@mkdir -p bin/release-$$GOOS-$$GOARCH
+	@cp LICENSE README.md bin/release-$$GOOS-$$GOARCH
+	@cp -r scripts bin/release-$$GOOS-$$GOARCH/scripts
+	@GOOS=$$GOOS GOARCH=$$GOARCH go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/release-$$GOOS-$$GOARCH $(PACKAGE)/cmd/...
+	@cd bin/release-$$GOOS-$$GOARCH && tar -czvf ../$(APP)-$(VERSION)-$$GOOS-$$GOARCH.tar.gz *
+	@sha256sum bin/$(APP)-$(VERSION)-$$GOOS-$$GOARCH.tar.gz > bin/checksum-$(VERSION)-$$GOOS-$$GOARCH.sha256.txt
+	@echo "👍 Release artifacts created for $$plugin: "
 	@echo "  📦 Tarball:          bin/$(APP)-$(VERSION)-$$GOOS-$$GOARCH.tar.gz"
-	@echo "  📜 SHA-256 checksum: bin/checksum-$(APP)-$(VERSION)-$$GOOS-$$GOARCH.sha256.txt"
+	@echo "  📜 SHA-256 checksum: bin/checksum-$(VERSION)-$$GOOS-$$GOARCH.sha256.txt"
 
 .PHONY: clean
 clean:
