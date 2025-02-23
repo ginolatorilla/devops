@@ -3,11 +3,15 @@ package kubectlplugin
 import (
 	"fmt"
 	"io"
+	"log/slog"
+	"slices"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/restmapper"
 )
 
 type Runner struct {
@@ -41,6 +45,30 @@ func (r *Runner) ToCobraCommand(use, short string, opts ...CobraOpts) *cobra.Com
 	}
 	r.ConfigFlags.AddFlags(cmd)
 	return cmd
+}
+
+func (r *Runner) GetAllServerResources() ([]schema.GroupVersionResource, error) {
+	agrs, err := restmapper.GetAPIGroupResources(r.DiscoveryApi)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API group resources: %w", err)
+	}
+	result := make([]schema.GroupVersionResource, 0)
+	for _, agr := range agrs {
+		group := agr.Group.GroupVersionKind().Group
+		version := agr.Group.PreferredVersion.Version
+		for _, resource := range agr.VersionedResources[version] {
+			if !slices.Contains(resource.Verbs, "list") {
+				slog.Debug("skipping unlistable resource", "resource", resource.Name)
+				continue
+			}
+			result = append(result, schema.GroupVersionResource{
+				Group:    group,
+				Version:  version,
+				Resource: resource.Name,
+			})
+		}
+	}
+	return result, nil
 }
 
 func (r *Runner) cobraRunE() func(cmd *cobra.Command, args []string) error {
