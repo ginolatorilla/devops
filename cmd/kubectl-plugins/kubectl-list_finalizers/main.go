@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 
 	kplug "github.com/ginolatorilla/devops/pkg/kubectlplugin"
 	"github.com/spf13/cobra"
@@ -33,43 +34,52 @@ func main() {
 	newCommand(kplug.WithDefaultDiscoveryApi()).Execute()
 }
 
-func newCommand(runnerOpts ...kplug.RunnerOpts) *cobra.Command {
-	runnerOpts = append(runnerOpts, kplug.WithTablePrinter(), kplug.WithAllNamespaces())
-	return kplug.NewRunner(findResourcesWithFinalizers, runnerOpts...).
+func newCommand(opts ...kplug.RunnerOpts) *cobra.Command {
+	opts = append(opts, kplug.WithAllNamespaces())
+	return kplug.NewRunner(listFinalizers, opts...).
 		ToCobraCommand(
 			"kubectl-list_finalizers",
 			"Lists all Kubernetes resources that have finalizers",
 		)
 }
 
-func findResourcesWithFinalizers(a kplug.HandlerArgs) (runtime.Object, error) {
-	tableBuilder := kplug.NewTableBuilder().AdditionalColumns(
-		kplug.ResourceKindColumn,
-		kplug.Column{Name: "Finalizers", Description: "The finalizers attached to the resource"},
-	)
-	apiResourceList, err := a.DiscoveryApi.ServerPreferredResources()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server preferred resources: %w", err)
-	}
+func listFinalizers(a kplug.HandlerArgs) (runtime.Object, error) {
+	tbuild := kplug.NewTableBuilder().
+		AdditionalColumns(
+			kplug.ResourceKindColumn,
+			kplug.Column{
+				Name:        "Finalizers",
+				Description: "The finalizers attached to the resource",
+			})
 	a.ConfigFlags.WithAll(true).WithScheme(nil)
-	for _, ar := range apiResourceList {
-		for _, r := range ar.APIResources {
-			if err := a.ToResourceFinder(r.Name).Do().Visit(func(i *resource.Info, err error) error {
-				uo := kplug.As[*unstructured.Unstructured](i.Object)
-				finalizers := uo.GetFinalizers()
-				if len(finalizers) == 0 {
-					return nil
-				}
-				tableBuilder.AddRow(
-					i.Object, map[string]any{
-						"Kind":       r.Kind,
-						"Finalizers": finalizers,
-					})
-				return nil
-			}); err != nil {
-				return nil, fmt.Errorf("failed to find resources with finalizers: %w", err)
-			}
+	gvrs, err := a.GetAllServerResources()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server resources: %w", err)
+	}
+	for _, gvr := range gvrs {
+		err := a.ToResourceFinder(gvr.Resource).Do().
+			Visit(addResourceWithFinalizerToTable(tbuild))
+		if err != nil {
+			slog.Warn("failed to find resources with finalizers",
+				"gvr", gvr,
+				"error", err)
 		}
 	}
-	return &tableBuilder.Table, nil
+	return &tbuild.Table, nil
+}
+
+func addResourceWithFinalizerToTable(tableBuilder *kplug.TableBuilder) resource.VisitorFunc {
+	return func(info *resource.Info, err error) error {
+		uo := kplug.As[*unstructured.Unstructured](info.Object)
+		finalizers := uo.GetFinalizers()
+		if len(finalizers) == 0 {
+			return nil
+		}
+		tableBuilder.AddRow(
+			info.Object, map[string]any{
+				"Kind":       uo.GetKind(),
+				"Finalizers": finalizers,
+			})
+		return nil
+	}
 }
