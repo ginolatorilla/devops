@@ -11,7 +11,6 @@ require (
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/dustin/go-humanize v1.0.1
-	github.com/fatih/structs v1.1.0
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
 	k8s.io/cli-runtime v0.32.1
