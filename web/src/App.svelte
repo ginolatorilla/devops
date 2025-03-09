@@ -11,7 +11,7 @@
 
 <main>
   <div>
-    {#await window.renderGoTemplate("{{ `hi` }}")}
+    {#await window.renderGoTemplate("{{ .Test.x }}", JSON.stringify( { Test: { x: "Hello, World!" } } ))}
       <p>Loading...</p>
     {:then message}
       Message from WASM: {message}
