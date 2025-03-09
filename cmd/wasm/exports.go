@@ -25,19 +25,13 @@ func exportFuncsToJS() {
 
 func renderGoTemplate(args []gojs.Value) any {
 	return js.NewPromise(func() (string, error) {
-		if len(args) < 2 {
-			return "", fmt.Errorf("expected 2 arguments")
-		}
-		if args[0].Type() != gojs.TypeString {
-			return "", fmt.Errorf("first arg must be a string")
+		if err := js.CheckArgs(args, gojs.TypeString, gojs.TypeString); err != nil {
+			return "", err
 		}
 		templateExpr := args[0].String()
 		tpl, err := template.New("this").Funcs(sprig.FuncMap()).Parse(templateExpr)
 		if err != nil {
 			return "", fmt.Errorf("first arg must be a valid Go template expression")
-		}
-		if args[1].Type() != gojs.TypeString {
-			return "", fmt.Errorf("second arg must be a string")
 		}
 		var data map[string]any
 		if err := json.Unmarshal([]byte(args[1].String()), &data); err != nil {
