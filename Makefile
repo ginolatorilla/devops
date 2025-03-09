@@ -34,13 +34,20 @@ tidy:
 	@go mod tidy
 
 .PHONY: build
-build:
-	@echo "🏗️  Building devops-cli..."
-	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/...
+build: build-wasm
+	@echo "🏗️  Building CLI apps..."
+	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/devops
+	go build $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) -o bin/ $(PACKAGE)/cmd/kubectl-plugins/...
+
+.PHONY: build-wasm
+build-wasm:
+	@echo "🏗️  Building devops WASM target..."
+	GOOS=js GOARCH=wasm tinygo build -o web/public/main.wasm $(PACKAGE)/cmd/wasm
 
 .PHONY: install
 install: test
-	go install $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) $(PACKAGE)/cmd/...
+	go install $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) $(PACKAGE)/cmd/devops
+	go install $(BUILD_FLAGS) $(LD_FLAGS_RELEASE) $(PACKAGE)/cmd/kubectl-plugins/...
 	mkdir -p $(PREFIX)/bin
 	install scripts/* $(PREFIX)/bin
 
