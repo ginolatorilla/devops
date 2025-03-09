@@ -39,6 +39,6 @@ export default class WasmLoader {
       console.error("Wasm module is not loaded");
       return;
     }
-    await this.go.run(this.inst);
+    this.go.run(this.inst);
   }
 }

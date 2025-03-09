@@ -1,23 +1,22 @@
 <script context="module" lang="ts">
   declare function run(): Promise<void>;
+  import "./lib/main.wasm.d.ts";
 </script>
 
 <script lang="ts">
   import svelteLogo from "./assets/svelte.svg";
   import viteLogo from "/vite.svg";
   import Counter from "./lib/Counter.svelte";
-  import WasmLoader from "./lib/wasm-loader";
-  import { onMount } from "svelte";
-
-  const loader = new WasmLoader("./main.wasm");
-  onMount(async () => {
-    await loader.load();
-    await loader.run();
-  });
 </script>
 
 <main>
   <div>
+    <p>
+      Message from WASM: {(async () => {
+        window.hello();
+        return "x";
+      })()}
+    </p>
     <a href="https://vite.dev" target="_blank" rel="noreferrer">
       <img src={viteLogo} class="logo" alt="Vite Logo" />
     </a>

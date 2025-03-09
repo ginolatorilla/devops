@@ -19,8 +19,20 @@
 // THE SOFTWARE.
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"syscall/js"
+)
 
 func main() {
+	quit := make(chan any)
 	fmt.Println("Hello from WASM")
+	js.Global().Set("hello", js.FuncOf(hello))
+	fmt.Println("Functions exported to JS")
+	<-quit
+}
+
+func hello(_ js.Value, _ []js.Value) any {
+	fmt.Println("Hello from Go")
+	return nil
 }
