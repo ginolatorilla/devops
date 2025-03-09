@@ -11,12 +11,13 @@
 
 <main>
   <div>
-    <p>
-      Message from WASM: {(async () => {
-        window.hello();
-        return "x";
-      })()}
-    </p>
+    {#await window.renderGoTemplate("{{ `hi` }}")}
+      <p>Loading...</p>
+    {:then message}
+      Message from WASM: {message}
+    {:catch error}
+      <p>Error: {error.message}</p>
+    {/await}
     <a href="https://vite.dev" target="_blank" rel="noreferrer">
       <img src={viteLogo} class="logo" alt="Vite Logo" />
     </a>

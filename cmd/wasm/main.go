@@ -20,19 +20,44 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"syscall/js"
+	gojs "syscall/js"
+
+	"text/template"
+
+	"github.com/ginolatorilla/devops/pkg/js"
 )
 
 func main() {
 	quit := make(chan any)
 	fmt.Println("Hello from WASM")
-	js.Global().Set("hello", js.FuncOf(hello))
+	for fname, f := range map[string]func([]gojs.Value) any{
+		"renderGoTemplate": renderGoTemplate,
+	} {
+		jsFunc := func(this gojs.Value, args []gojs.Value) any {
+			return f(args)
+		}
+		gojs.Global().Set(fname, gojs.FuncOf(jsFunc))
+	}
 	fmt.Println("Functions exported to JS")
 	<-quit
 }
 
-func hello(_ js.Value, _ []js.Value) any {
-	fmt.Println("Hello from Go")
-	return nil
+func renderGoTemplate(args []gojs.Value) any {
+	return js.NewPromise(func() (string, error) {
+		if len(args) < 1 {
+			return "", fmt.Errorf("expected at least 1 argument")
+		}
+		input := args[0].String()
+		tpl, err := template.New("this").Parse(input)
+		if err != nil {
+			return "", err
+		}
+		output := bytes.Buffer{}
+		if err := tpl.Execute(&output, nil); err != nil {
+			return "", nil
+		}
+		return output.String(), nil
+	})
 }

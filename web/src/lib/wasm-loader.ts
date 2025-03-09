@@ -1,4 +1,4 @@
-import "./wasm_exec_tiny";
+import "./wasm_exec";
 
 declare global {
   interface Window {

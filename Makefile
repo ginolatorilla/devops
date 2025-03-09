@@ -42,7 +42,7 @@ build: build-wasm
 .PHONY: build-wasm
 build-wasm:
 	@echo "🏗️  Building devops WASM target..."
-	GOOS=js GOARCH=wasm tinygo build -o web/public/main.wasm $(PACKAGE)/cmd/wasm
+	GOOS=js GOARCH=wasm go build -o web/public/main.wasm $(PACKAGE)/cmd/wasm
 
 .PHONY: install
 install: test
