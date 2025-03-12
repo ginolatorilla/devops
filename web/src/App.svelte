@@ -1,12 +1,12 @@
 <script context="module" lang="ts">
   declare function run(): Promise<void>;
-  import "./lib/main.wasm.d.ts";
+  import "./lib/utils/main.wasm.d.ts";
 </script>
 
 <script lang="ts">
   import svelteLogo from "./assets/svelte.svg";
   import viteLogo from "/vite.svg";
-  import Counter from "./lib/Counter.svelte";
+  import Counter from "./lib/components/Counter.svelte";
 </script>
 
 <main>

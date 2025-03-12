@@ -1,7 +1,7 @@
 import { mount } from "svelte";
 import "./app.css";
 import App from "./App.svelte";
-import WasmLoader from "./lib/wasm-loader";
+import WasmLoader from "./lib/utils/wasm-loader";
 
 async function init() {
   const loader = new WasmLoader("./main.wasm");
