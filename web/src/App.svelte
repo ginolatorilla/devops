@@ -4,58 +4,85 @@
 </script>
 
 <script lang="ts">
-  import svelteLogo from "./assets/svelte.svg";
-  import viteLogo from "/vite.svg";
-  import Counter from "./lib/components/Counter.svelte";
 </script>
 
-<main>
-  <div>
-    {#await window.renderGoTemplate("{{ .Test.x }}", JSON.stringify( { Test: { x: "Hello, World!" } } ))}
-      <p>Loading...</p>
-    {:then message}
-      Message from WASM: {message}
-    {:catch error}
-      <p>Error: {error.message}</p>
-    {/await}
-    <a href="https://vite.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
+<header
+  class="sticky top-0 flex flex-row items-center justify-between w-full h-10 px-4 py-2 md:fixed bg-amber-700 text-cyan-50"
+>
+  <h1 class="text-lg font-bold">Gino's DevOps Tools</h1>
+  <nav class="flex flex-row gap-x-5">
+    <p>Tool 1</p>
+    <p>Tool 2</p>
+    <p>Tool 3</p>
+  </nav>
+  <a
+    class="underline"
+    href="https://github.com/ginolatorilla/devops"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    Visit GitHub
+  </a>
+</header>
 
-  <div class="card">
-    <Counter />
-  </div>
+<main
+  class="flex flex-col px-4 pt-2 md:pt-10 md:flex-row md:gap-x-4 md:h-screen md:pb-6"
+>
+  <article
+    class="order-first p-2 my-2 border rounded-md md:overflow-y-scroll md:my-4 md:order-last md:h-fit md:w-full border-amber-700"
+  >
+    <p>Tool UI</p>
+  </article>
 
-  <p>
-    Check out <a
-      href="https://github.com/sveltejs/kit#readme"
-      target="_blank"
-      rel="noreferrer">SvelteKit</a
-    >, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">Click on the Vite and Svelte logos to learn more</p>
+  <aside
+    class="order-none my-2 md:my-0 md:py-2 md:w-1/4 md:border-amber-700 md:border-r-1 md:overflow-y-scroll"
+  >
+    <h1 class="my-1 text-xl font-bold">Tool Name</h1>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+    <p>Tool's documentation</p>
+  </aside>
 </main>
 
-<style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
-</style>
+<footer
+  class="px-4 py-2 mt-5 md:h-6 md:py-1 md:fixed md:bottom-0 md:flex md:flex-row md:justify-end md:w-full md:bg-amber-700 md:text-amber-50 text-stone-400"
+>
+  <p class="text-sm md:text-xs">© 2025 Gino Latorilla</p>
+</footer>
