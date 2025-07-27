@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ginolatorilla/core"
 	"github.com/spf13/cobra"
 )
 
@@ -67,9 +68,9 @@ func corsCheck(targetUrl, originUrl string, stdout io.Writer) error {
 }
 
 func sendPreflightRequest(targetUrl, originUrl string) *http.Response {
-	req := _must(http.NewRequest(http.MethodOptions, targetUrl, nil))
+	req := core.Must(http.NewRequest(http.MethodOptions, targetUrl, nil))
 	req.Header.Set("Origin", originUrl)
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	req.Header.Set("Access-Control-Request-Headers", "X-Requested-With")
-	return _must(http.DefaultClient.Do(req))
+	return core.Must(http.DefaultClient.Do(req))
 }
