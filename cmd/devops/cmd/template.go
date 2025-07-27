@@ -25,6 +25,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/dustin/go-humanize"
+	"github.com/ginolatorilla/core"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +56,7 @@ func render(stdin io.Reader, stdout io.Writer) error {
 		Funcs(sprig.FuncMap()).
 		Funcs(funcMap).
 		Parse(
-			string(_must(io.ReadAll(stdin))),
+			string(core.Must(io.ReadAll(stdin))),
 		)
 	if err != nil {
 		return err
